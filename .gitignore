@@ -1,0 +1,17 @@
+# Cache Visual Studio
+.vs
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.egg-info/
+
+# Environnement virtuel et notes de travail
+.venv/
+.superpowers/

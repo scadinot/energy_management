@@ -1,0 +1,12 @@
+{
+  "domain": "energy_management",
+  "name": "Energy Management",
+  "codeowners": ["@scadinot"],
+  "config_flow": true,
+  "dependencies": ["http", "frontend", "panel_custom"],
+  "documentation": "https://github.com/scadinot/energy_management",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/scadinot/energy_management/issues",
+  "single_config_entry": true,
+  "version": "0.1.0"
+}
