@@ -6,6 +6,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN  # noqa: F401
+from .frontend import async_register_panel, async_unregister_panel
 from .manager import EnergyManager
 
 PLATFORMS: list[Platform] = [Platform.SWITCH, Platform.SENSOR, Platform.BINARY_SENSOR]
@@ -17,6 +18,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.runtime_data = manager
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     await manager.async_start()
+    await async_register_panel(hass, entry)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     return True
 
@@ -28,5 +30,6 @@ async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> Non
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Arrête le manager, puis retire les entités."""
+    await async_unregister_panel(hass)
     await entry.runtime_data.async_stop()
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
