@@ -194,7 +194,6 @@ class EnergyManagementPanel extends HTMLElement {
   }
 
   _renderHeader() {
-    const c = this._cfg;
     const on = this._text(this._own('pilotage')) === 'on';
     const available = this._state(this._own('pilotage')) !== null;
     const ecartOn = this._text(this._own('ecart')) === 'on';
@@ -301,7 +300,6 @@ class EnergyManagementPanel extends HTMLElement {
   }
 
   _renderDecision() {
-    const c = this._cfg;
     const raw = this._text(this._own('mode_voulu'));
     const label = this._known(this._own('mode_voulu')) ? this._fmtState(this._own('mode_voulu')) : '—';
     const raison = this._known(this._own('raison')) ? this._text(this._own('raison')) : '—';
