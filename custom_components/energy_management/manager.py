@@ -169,6 +169,15 @@ class EnergyManager:
 
     async def _async_reset(self) -> None:
         """Remise aux valeurs normales, limitée aux commandes encore à remettre."""
+        # Séquence précédente encore en cours (Pilotage coupé pendant une
+        # écriture) : une écriture peut être en vol, la commande se relit
+        # encore à sa valeur normale et serait retirée à tort. On n'élague ni
+        # n'écrit : la vérification suivante reprend. Aucun `await` entre ce
+        # test, l'élagage et la prise du verrou par async_apply.
+        # Cas résiduel accepté : une écriture déclarée en échec (3 essais de
+        # 60 s) qui arriverait encore plus tard.
+        if self._reconciler.busy:
+            return
         self._prune_reset()
         if not self.reset_pending:
             return

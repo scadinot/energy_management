@@ -14,6 +14,7 @@ from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import restore_state
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -164,6 +165,15 @@ def _restore(
         mock_restore_cache(hass, [State(RESTORED_ID, state)])
     else:
         mock_restore_cache_with_extra_data(hass, [(State(RESTORED_ID, state), extra)])
+
+
+def _etat(hass: HomeAssistant) -> tuple[str, str, str]:
+    """Mode, seuil 12 et seuil 13 relus sur l'onduleur simulé."""
+    return (
+        hass.states.get(MODE_SELECT).state,
+        hass.states.get(LOW).state,
+        hass.states.get(HIGH).state,
+    )
 
 
 async def _options_sans_reseau(hass: HomeAssistant, entry: MockConfigEntry) -> None:
@@ -464,6 +474,12 @@ async def test_pilotage_off_interrompt_sequence(
     # La remise aux normales peut partir ensuite ; jamais de SBU
     await _tick(hass)
     assert (MODE_SELECT, SBU) not in fake_inverter.calls
+    # Remise menée à son terme une fois la séquence interrompue finie
+    for seconds in (122, 183):
+        await _tick(hass, seconds)
+    assert (MODE_SELECT, SBU) not in fake_inverter.calls
+    assert _etat(hass) == (UTI, "50", "95")
+    assert manager.reset_pending == set()
 
 
 async def test_erreur_inattendue_journalisee(
@@ -754,3 +770,65 @@ async def test_coupure_deja_coupe_sans_remise(
     await _tick(hass)
     assert manager.reset_pending == set()
     assert fake_inverter.calls == []
+
+
+async def _coupure_pendant_ecriture(
+    hass, entry, fake_inverter, entity: str, value: Any
+) -> tuple[EnergyManager, list[str]]:
+    """Jour rouge, Pilotage coupé pendant qu'une écriture est en vol (0,5 s).
+
+    Renvoie le manager et les états successifs de `entity` après la coupure,
+    une fois la séquence interrompue finie et trois vérifications passées.
+    """
+    fake_inverter.delay[entity] = 0.5
+    manager = await _setup(hass, entry)
+    await _pilotage(hass, entry, True)
+    seen: list[str] = []
+
+    @callback
+    def _record(event) -> None:
+        seen.append(event.data["new_state"].state)
+
+    unsub = async_track_state_change_event(hass, [entity], _record)
+    _set(hass, COLOR_TODAY, "Rouge")
+    async with asyncio.timeout(5):
+        while (entity, value) not in fake_inverter.calls:
+            await asyncio.sleep(0.01)
+    await hass.services.async_call(
+        "switch", "turn_off", {"entity_id": _switch_id(hass, entry)}, blocking=True
+    )
+    await hass.async_block_till_done()
+    for seconds in (61, 122, 183):
+        await _tick(hass, seconds)
+    unsub()
+    return manager, seen
+
+
+async def test_remise_apres_ecriture_sbu_en_vol(
+    hass, base_states, fake_inverter, mock_entry, monkeypatch
+):
+    """Le SBU en vol arrive après la coupure : la remise le défait ensuite."""
+    monkeypatch.setattr(reconciler, "READBACK_TIMEOUT", 1)
+    manager, seen = await _coupure_pendant_ecriture(
+        hass, mock_entry, fake_inverter, MODE_SELECT, SBU
+    )
+    assert _etat(hass) == (UTI, "50", "95")
+    assert manager.reset_pending == set()
+    # UTI écrit après l'arrivée du SBU retardé
+    assert seen == [SBU, UTI]
+    calls = fake_inverter.calls
+    assert calls.index((MODE_SELECT, UTI)) > calls.index((MODE_SELECT, SBU))
+
+
+async def test_remise_apres_seuil_13_en_vol(
+    hass, base_states, fake_inverter, mock_entry, monkeypatch
+):
+    """Le seuil 13 = 35 en vol arrive après la coupure : remis à 95 ensuite."""
+    monkeypatch.setattr(reconciler, "READBACK_TIMEOUT", 1)
+    manager, seen = await _coupure_pendant_ecriture(
+        hass, mock_entry, fake_inverter, HIGH, 35
+    )
+    assert _etat(hass) == (UTI, "50", "95")
+    assert manager.reset_pending == set()
+    assert seen == ["35", "95"]
+    assert (MODE_SELECT, SBU) not in fake_inverter.calls
