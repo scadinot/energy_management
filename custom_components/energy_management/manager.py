@@ -1,6 +1,7 @@
 """Manager : écoutes, minuteur, verrou du Pilotage et remise aux valeurs normales."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime
 from typing import Any
@@ -51,7 +52,11 @@ class EnergyManager:
         self.decision: Decision | None = None
         self.gaps: list[str] = []
         self.reset_pending = False  # remise aux normales demandée, pas encore faite
-        self._reconciler = Reconciler(hass, self.conf)
+        # Un verrou par entrée, conservé d'un rechargement à l'autre : une
+        # séquence de l'ancien manager bloque le nouveau jusqu'à son arrêt.
+        locks: dict[str, asyncio.Lock] = hass.data.setdefault(DOMAIN, {})
+        lock = locks.setdefault(entry.entry_id, asyncio.Lock())
+        self._reconciler = Reconciler(hass, self.conf, lock)
         self._running = False
         self._unsubs: list[CALLBACK_TYPE] = []
 

@@ -540,6 +540,20 @@ async def test_remise_conservee_au_rechargement(
     assert manager.reset_pending is False
 
 
+async def test_verrou_commun_au_rechargement(
+    hass, base_states, fake_inverter, mock_entry
+):
+    """Le nouveau manager voit occupé le verrou tenu par l'ancien."""
+    old = await _setup(hass, mock_entry)
+    await hass.config_entries.async_reload(mock_entry.entry_id)
+    await hass.async_block_till_done()
+    new = mock_entry.runtime_data
+    assert new is not old
+    async with old._reconciler._lock:
+        assert new._reconciler.busy is True
+    assert new._reconciler.busy is False
+
+
 async def test_options_retire_presence_reseau(
     hass, base_states, fake_inverter, mock_entry
 ):

@@ -176,10 +176,16 @@ def read_actual(hass: HomeAssistant, conf: Mapping[str, Any]) -> Actual:
 class Reconciler:
     """Exécute les écritures planifiées, une séquence à la fois."""
 
-    def __init__(self, hass: HomeAssistant, conf: Mapping[str, Any]) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        conf: Mapping[str, Any],
+        lock: asyncio.Lock | None = None,
+    ) -> None:
         self._hass = hass
         self._conf = conf
-        self._lock = asyncio.Lock()
+        # Verrou fourni par le manager : partagé entre rechargements d'une entrée
+        self._lock = lock if lock is not None else asyncio.Lock()
         self._failed: set[str] = set()  # commandes en échec, déjà notifiées
 
     @property
@@ -284,11 +290,16 @@ class Reconciler:
         unsub = async_track_state_change_event(self._hass, [entity_id], _on_change)
         try:
             try:
-                await self._hass.services.async_call(
-                    domain, service, data, blocking=True
-                )
+                # Un appel qui ne revient jamais garderait le verrou pour toujours.
+                async with asyncio.timeout(READBACK_TIMEOUT):
+                    await self._hass.services.async_call(
+                        domain, service, data, blocking=True
+                    )
             except HomeAssistantError as err:
                 _LOGGER.warning("Appel %s.%s en erreur : %s", domain, service, err)
+                return False
+            except TimeoutError:
+                _LOGGER.warning("Appel %s.%s sans réponse", domain, service)
                 return False
             current = self._hass.states.get(entity_id)
             if current is not None and matches(current.state):

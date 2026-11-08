@@ -182,6 +182,40 @@ async def test_exception_du_service(hass, base_states, notifs):
     assert attempts == [LOW] * 3
 
 
+async def test_service_sans_reponse(hass, base_states, notifs):
+    """Un appel qui ne revient jamais compte comme un essai raté ; verrou libéré."""
+    attempts: list[str] = []
+    never = asyncio.Event()
+
+    async def _hang(call: ServiceCall) -> None:
+        attempts.append(call.data["entity_id"])
+        await never.wait()
+
+    hass.services.async_register("number", "set_value", _hang)
+    rec = Reconciler(hass, MOCK_CONF)
+    async with asyncio.timeout(5):
+        assert await rec.async_apply(Targets("battery", 30, 35, 15), 5) is False
+    assert attempts == [LOW] * 3
+    assert rec.busy is False
+    # Vérification suivante : la séquence repart
+    async with asyncio.timeout(5):
+        assert await rec.async_apply(Targets("battery", 30, 35, 15), 5) is False
+    assert attempts == [LOW] * 6
+
+
+async def test_verrou_partage(hass, base_states, fake_inverter, notifs):
+    """Deux Reconciler sur le même verrou : un seul écrit à la fois."""
+    lock = asyncio.Lock()
+    old = Reconciler(hass, MOCK_CONF, lock)
+    new = Reconciler(hass, MOCK_CONF, lock)
+    async with lock:
+        assert old.busy is True
+        assert new.busy is True
+        assert await new.async_apply(Targets("battery", 30, 35, 15), 5) is False
+    assert fake_inverter.calls == []
+    assert await new.async_apply(Targets("battery", 30, 35, 15), 5) is True
+
+
 def test_read_actual(hass, base_states):
     assert read_actual(hass, MOCK_CONF) == Actual("grid", 50.0, 95.0, 15.0)
     hass.states.async_set(MODE_SELECT, "SOL (Solar First)")
