@@ -109,7 +109,15 @@
   "entity": {
     "switch": {
       "pilotage": {
-        "name": "Control"
+        "name": "Control",
+        "state_attributes": {
+          "remise_en_attente": {
+            "name": "Reset pending"
+          },
+          "commandes_a_remettre": {
+            "name": "Commands to reset"
+          }
+        }
       }
     },
     "sensor": {

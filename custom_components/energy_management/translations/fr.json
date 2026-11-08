@@ -109,7 +109,15 @@
   "entity": {
     "switch": {
       "pilotage": {
-        "name": "Pilotage"
+        "name": "Pilotage",
+        "state_attributes": {
+          "remise_en_attente": {
+            "name": "Remise en attente"
+          },
+          "commandes_a_remettre": {
+            "name": "Commandes à remettre"
+          }
+        }
       }
     },
     "sensor": {

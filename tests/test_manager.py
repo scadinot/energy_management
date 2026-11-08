@@ -669,6 +669,28 @@ async def test_remise_ne_reecrit_pas_un_reglage_manuel(
     assert fake_inverter.calls == [(MODE_SELECT, UTI), (HIGH, 95), (LOW, 50)]
 
 
+async def test_remise_attributs_du_pilotage(
+    hass, base_states, fake_inverter, mock_entry
+):
+    manager = await _remise_sans_charge(hass, mock_entry, fake_inverter)
+    switch_id = _switch_id(hass, mock_entry)
+    state = hass.states.get(switch_id)
+    assert state.state == "off"
+    assert state.attributes["remise_en_attente"] is True
+    assert state.attributes["commandes_a_remettre"] == ["Charge réseau"]
+    assert _restore_data(hass, switch_id) == {"remise_en_attente": [CMD_CHARGE]}
+    # La charge revient, déjà à la valeur normale : rien à écrire, remise finie
+    _set(hass, CHARGE, "15")
+    await hass.async_block_till_done()
+    await _tick(hass)
+    assert fake_inverter.calls == [(MODE_SELECT, UTI), (HIGH, 95), (LOW, 50)]
+    assert manager.reset_pending == set()
+    state = hass.states.get(switch_id)
+    assert state.attributes["remise_en_attente"] is False
+    assert state.attributes["commandes_a_remettre"] == []
+    assert _restore_data(hass, switch_id) == {"remise_en_attente": []}
+
+
 async def test_restauration_ancien_format_booleen(
     hass, base_states, fake_inverter, mock_entry
 ):

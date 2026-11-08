@@ -184,10 +184,17 @@ class EnergyManagementPanel extends HTMLElement {
     const ecart = ecartOn
       ? `<span class="badge err">Écart : ${this._esc(commandes.join(', '))}</span>`
       : '<span class="badge ok">Aucun écart</span>';
+    // Remise aux valeurs normales pas terminée : commandes encore à remettre
+    const pilotage = this._attrs(c.pilotage_entity);
+    const aRemettre = Array.isArray(pilotage.commandes_a_remettre) ? pilotage.commandes_a_remettre : [];
+    const remise = pilotage.remise_en_attente === true
+      ? `<span class="badge warn">Remise en attente : ${this._esc(aRemettre.join(', '))}</span>`
+      : '';
     this._set('header', `
       <div class="row">
         <h1>Energy Management</h1>
         <div class="row">
+          ${remise}
           ${ecart}
           <label class="toggle">
             <input type="checkbox" id="pilotage-toggle" ${on ? 'checked' : ''} ${available ? '' : 'disabled'}>
