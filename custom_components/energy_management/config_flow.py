@@ -221,8 +221,8 @@ def validate_values(hass: HomeAssistant, conf: Mapping[str, Any]) -> dict[str, s
     for key in (CONF_RESERVE_NORMAL, CONF_RESERVE_VIGILANCE, CONF_LOW_NORMAL):
         check(key, conf[key], low_bounds)
     for key in (CONF_RESERVE_NORMAL, CONF_RESERVE_VIGILANCE):
-        # La réserve seule d'abord, puis la réserve plus l'écart (seuil 13)
-        if check(key, conf[key], high_bounds):
+        # Seuil 13 : réserve plus écart (une réserve déjà fautive porte l'erreur seule)
+        if key not in bound_errors:
             check(CONF_GAP, conf[key] + gap, high_bounds)
     check(CONF_HIGH_NORMAL, conf[CONF_HIGH_NORMAL], high_bounds)
     check(CONF_CHARGE_NORMAL, conf[CONF_CHARGE_NORMAL], charge_bounds)

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.data_entry_flow import FlowResultType
@@ -62,13 +61,6 @@ STEP_3 = [
     CONF_CHARGE_BOOST,
     CONF_EV_THRESHOLD,
 ]
-
-
-@pytest.fixture(autouse=True)
-def sans_dependances():
-    """Ne charge pas `frontend` et `panel_custom` : l'assistant n'en a pas besoin."""
-    with patch("homeassistant.config_entries.async_process_deps_reqs", AsyncMock()):
-        yield
 
 
 def _part(conf: dict, keys: list[str]) -> dict:
@@ -217,3 +209,23 @@ def test_traductions_coherentes():
     fr = json.loads((dossier / "translations" / "fr.json").read_text(encoding="utf-8"))
     assert strings == en
     assert _structure(strings) == _structure(fr)
+
+
+def _bornes(hass, low, high):
+    """Pose les bornes des entités des seuils 12 et 13."""
+    hass.states.async_set(LOW, "50", {"min": low[0], "max": low[1], "step": 1})
+    hass.states.async_set(HIGH, "95", {"min": high[0], "max": high[1], "step": 1})
+
+
+async def test_reserve_basse_valide_si_reserve_plus_ecart_dans_les_bornes(
+    hass, base_states
+):
+    _bornes(hass, (0, 95), (10, 100))
+    conf = {**MOCK_CONF, CONF_RESERVE_NORMAL: 5, CONF_GAP: 5}
+    assert validate_values(hass, conf) == {}
+
+
+async def test_reserve_vigilance_plus_ecart_hors_bornes(hass, base_states):
+    _bornes(hass, (0, 100), (10, 100))
+    conf = {**MOCK_CONF, CONF_RESERVE_VIGILANCE: 98, CONF_GAP: 5}
+    assert validate_values(hass, conf) == {CONF_GAP: "out_of_bounds"}
