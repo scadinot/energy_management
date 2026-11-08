@@ -8,7 +8,8 @@ from unittest.mock import patch
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant, State, callback
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
+from homeassistant.core import CoreState, HomeAssistant, State, callback
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
@@ -318,6 +319,71 @@ async def test_redemarrage_pilotage_actif(hass, base_states, fake_inverter, mock
     assert hass.states.get(RESTORED_ID).state == "on"
     assert fake_inverter.calls == [(LOW, 30), (HIGH, 35), (MODE_SELECT, SBU)]
     assert manager.gaps == []
+
+
+async def test_aucune_ecriture_avant_demarrage_complet(
+    hass, base_states, fake_inverter, mock_entry
+):
+    """Redémarrage un jour rouge, Tempo pas encore chargé : pas de SBU → UTI → SBU."""
+    _set(hass, MODE_SELECT, SBU)
+    _set(hass, LOW, "30")
+    _set(hass, HIGH, "35")
+    _set(hass, COLOR_TODAY, "unknown")
+    _restore(hass, mock_entry, "on")
+    hass.set_state(CoreState.starting)
+    manager = await _setup(hass, mock_entry)
+    assert manager.pilotage is True
+    # Couleur inconnue = non rouge : calculé et affiché, mais rien d'écrit
+    assert manager.decision.state == "reseau"
+    assert manager.gaps == ["mode", "low", "high"]
+    await _tick(hass)
+    assert fake_inverter.calls == []
+    # Tempo chargé avant la fin du démarrage
+    _set(hass, COLOR_TODAY, "Rouge")
+    await hass.async_block_till_done()
+    assert fake_inverter.calls == []
+    hass.set_state(CoreState.running)
+    hass.bus.async_fire(EVENT_HOMEASSISTANT_STARTED)
+    await hass.async_block_till_done()
+    # Déjà en SBU 30/35 : rien à écrire
+    assert fake_inverter.calls == []
+    assert manager.gaps == []
+
+
+async def test_matin_rouge_au_demarrage_complet(
+    hass, base_states, fake_inverter, mock_entry
+):
+    _set(hass, COLOR_TODAY, "unknown")
+    _restore(hass, mock_entry, "on")
+    hass.set_state(CoreState.starting)
+    manager = await _setup(hass, mock_entry)
+    _set(hass, COLOR_TODAY, "Rouge")
+    await hass.async_block_till_done()
+    assert manager.decision.state == "batterie"
+    assert fake_inverter.calls == []
+    hass.set_state(CoreState.running)
+    hass.bus.async_fire(EVENT_HOMEASSISTANT_STARTED)
+    await hass.async_block_till_done()
+    assert fake_inverter.calls == [(LOW, 30), (HIGH, 35), (MODE_SELECT, SBU)]
+
+
+async def test_remise_differee_au_demarrage_complet(
+    hass, base_states, fake_inverter, mock_entry
+):
+    _set(hass, MODE_SELECT, SBU)
+    _set(hass, LOW, "30")
+    _set(hass, HIGH, "35")
+    _restore(hass, mock_entry, "off", {"remise_en_attente": True})
+    hass.set_state(CoreState.starting)
+    manager = await _setup(hass, mock_entry)
+    await _tick(hass)
+    assert fake_inverter.calls == []
+    assert manager.reset_pending is True
+    hass.set_state(CoreState.running)
+    hass.bus.async_fire(EVENT_HOMEASSISTANT_STARTED)
+    await hass.async_block_till_done()
+    assert fake_inverter.calls == [(MODE_SELECT, UTI), (HIGH, 95), (LOW, 50)]
+    assert manager.reset_pending is False
 
 
 async def test_reseau_absent_gel(hass, base_states, fake_inverter, mock_entry):

@@ -8,6 +8,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import (
     CALLBACK_TYPE,
+    CoreState,
     Event,
     EventStateChangedData,
     HomeAssistant,
@@ -19,6 +20,7 @@ from homeassistant.helpers.event import (
     async_track_state_change_event,
     async_track_time_interval,
 )
+from homeassistant.helpers.start import async_at_started
 
 from .const import DOMAIN, UPDATE_INTERVAL, conf_of, signal_update
 from .decision import STATE_OUTAGE, Decision, Settings, decide, normal_targets
@@ -66,6 +68,9 @@ class EnergyManager:
         self._unsubs.append(
             async_track_time_interval(self.hass, self._on_tick, UPDATE_INTERVAL)
         )
+        if self.hass.state is not CoreState.running:
+            # Démarrage de HA en cours : nouveau calcul une fois HA démarré.
+            self._unsubs.append(async_at_started(self.hass, self._on_started))
         self._schedule_refresh()
 
     async def async_stop(self) -> None:
@@ -80,6 +85,10 @@ class EnergyManager:
 
     @callback
     def _on_tick(self, _now: datetime) -> None:
+        self._schedule_refresh()
+
+    @callback
+    def _on_started(self, _hass: HomeAssistant) -> None:
         self._schedule_refresh()
 
     @callback
@@ -125,6 +134,11 @@ class EnergyManager:
         # cours (gel en coupure, décision 6) ; une remise interrompue reste
         # alors en attente et repart au retour du réseau (décision 2).
         if decision.state == STATE_OUTAGE:
+            return
+        # Démarrage de HA pas terminé : une source peut ne pas être chargée
+        # (couleur Tempo inconnue = non rouge) alors que l'onduleur se lit
+        # déjà. On calcule et on affiche, sans écrire ni remettre.
+        if self.hass.state is not CoreState.running:
             return
         if not self.pilotage and self.reset_pending:
             if await self._reconciler.async_apply(
