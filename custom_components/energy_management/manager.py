@@ -20,9 +20,9 @@ from homeassistant.helpers.event import (
     async_track_time_interval,
 )
 
-from .const import DOMAIN, UPDATE_INTERVAL, signal_update
+from .const import DOMAIN, UPDATE_INTERVAL, conf_of, signal_update
 from .decision import STATE_OUTAGE, Decision, Settings, decide, normal_targets
-from .inputs import input_entities, read_inputs, settings_from_conf
+from .inputs import grid_present, input_entities, read_inputs, settings_from_conf
 from .reconciler import Reconciler, compute_gaps, read_actual
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ class EnergyManager:
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
         self.entry = entry
-        self.conf: dict[str, Any] = {**entry.data, **entry.options}
+        self.conf: dict[str, Any] = conf_of(entry)
         self.settings: Settings = settings_from_conf(self.conf)
         self.pilotage = False  # coupé par défaut
         self.decision: Decision | None = None
@@ -103,33 +103,46 @@ class EnergyManager:
         """Calcule l'état voulu puis, si permis, réconcilie l'onduleur."""
         if not self._running:
             return
+        try:
+            await self._async_refresh()
+        except Exception:
+            # Un minuteur ou une écoute ne doit jamais planter : on journalise.
+            _LOGGER.exception("Calcul ou réconciliation de l'onduleur en erreur")
+
+    def _grid(self) -> bool:
+        """Réseau présent, relu à chaque essai d'une séquence."""
+        return grid_present(self.hass, self.conf)
+
+    async def _async_refresh(self) -> None:
+        """Corps du calcul ; les exceptions sont journalisées par l'appelant."""
         previous = self.decision.targets if self.decision else None
         decision = decide(read_inputs(self.hass, self.conf), self.settings, previous)
         self.decision = decision
         self._update_gaps()
 
         # Réseau absent : aucune écriture, une remise demandée reste en attente.
+        # La présence est aussi contrôlée avant chaque essai d'une séquence en
+        # cours (gel en coupure, décision 6) ; une remise interrompue reste
+        # alors en attente et repart au retour du réseau (décision 2).
         if decision.state == STATE_OUTAGE:
             return
-        try:
-            if not self.pilotage and self.reset_pending:
-                if await self._reconciler.async_apply(
-                    normal_targets(self.settings),
-                    self.settings.gap,
-                    should_continue=lambda: self._running and not self.pilotage,
-                ):
-                    self.reset_pending = False
-            elif self.pilotage and decision.targets is not None:
-                await self._reconciler.async_apply(
-                    decision.targets,
-                    self.settings.gap,
-                    should_continue=lambda: self._running and self.pilotage,
-                )
-            else:
-                return
-        except Exception:
-            # Un minuteur ou une écoute ne doit jamais planter : on journalise.
-            _LOGGER.exception("Réconciliation de l'onduleur en erreur")
+        if not self.pilotage and self.reset_pending:
+            if await self._reconciler.async_apply(
+                normal_targets(self.settings),
+                self.settings.gap,
+                should_continue=lambda: (
+                    self._running and not self.pilotage and self._grid()
+                ),
+            ):
+                self.reset_pending = False
+        elif self.pilotage and decision.targets is not None:
+            await self._reconciler.async_apply(
+                decision.targets,
+                self.settings.gap,
+                should_continue=lambda: self._running and self.pilotage and self._grid(),
+            )
+        else:
+            return
         self._update_gaps()
 
     async def async_set_pilotage(self, on: bool, *, restored: bool = False) -> None:

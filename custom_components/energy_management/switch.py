@@ -8,9 +8,16 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.helpers.restore_state import (
+    ExtraStoredData,
+    RestoredExtraData,
+    RestoreEntity,
+)
 
 from .manager import EnergyManager, device_info
+
+# Clé des données conservées : remise aux normales demandée, pas encore faite
+RESET_PENDING = "remise_en_attente"
 
 
 async def async_setup_entry(
@@ -39,12 +46,25 @@ class PilotageSwitch(SwitchEntity, RestoreEntity):
         """État du Pilotage tenu par le manager."""
         return self._manager.pilotage
 
+    @property
+    def extra_restore_state_data(self) -> ExtraStoredData:
+        """Conserve une remise demandée au redémarrage et au rechargement."""
+        return RestoredExtraData({RESET_PENDING: self._manager.reset_pending})
+
     async def async_added_to_hass(self) -> None:
-        """Restaure l'état ; un Pilotage restauré coupé ne demande aucune remise."""
+        """Restaure l'état et une remise déjà demandée.
+
+        Un Pilotage restauré coupé sans remise en attente n'écrit rien
+        (décision 1) ; une remise demandée avant l'arrêt part au calcul suivant.
+        """
         await super().async_added_to_hass()
         last = await self.async_get_last_state()
         if last is not None and last.state == STATE_ON:
             await self._manager.async_set_pilotage(True, restored=True)
+            return
+        extra = await self.async_get_last_extra_data()
+        if extra is not None and extra.as_dict().get(RESET_PENDING) is True:
+            self._manager.reset_pending = True
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Allume le Pilotage."""

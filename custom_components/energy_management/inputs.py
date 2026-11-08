@@ -72,6 +72,13 @@ def _vigilance(
     return active, False
 
 
+def grid_present(hass: HomeAssistant, conf: Mapping[str, Any]) -> bool:
+    """Présence réseau : non configurée = présente ; configurée = seulement si « on »."""
+    if not conf.get(CONF_GRID):
+        return True
+    return _state(hass, conf, CONF_GRID) == "on"
+
+
 def read_inputs(hass: HomeAssistant, conf: Mapping[str, Any]) -> Inputs:
     """Lit les sources configurées ; toute valeur douteuse reste prudente."""
     vigilance, vigilance_unknown = _vigilance(hass, conf)
@@ -87,13 +94,8 @@ def read_inputs(hass: HomeAssistant, conf: Mapping[str, Any]) -> Inputs:
     ev_power = _number(_state(hass, conf, CONF_EV_POWER))
     ev_charging = ev_power is None or ev_power > threshold
 
-    # Non configurée = présente ; configurée = présente seulement si « on »
-    grid_present = (
-        _state(hass, conf, CONF_GRID) == "on" if conf.get(CONF_GRID) else True
-    )
-
     return Inputs(
-        grid_present=grid_present,
+        grid_present=grid_present(hass, conf),
         today_red=_state(hass, conf, CONF_COLOR_TODAY) == RED,
         tomorrow_red=_state(hass, conf, CONF_COLOR_TOMORROW) == RED,
         off_peak=off_peak,

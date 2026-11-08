@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
 
 DOMAIN = "energy_management"
 
@@ -78,3 +81,14 @@ UPDATE_INTERVAL = timedelta(minutes=1)
 def signal_update(entry_id: str) -> str:
     """Nom du signal envoyé aux entités à chaque nouveau calcul."""
     return f"{DOMAIN}_update_{entry_id}"
+
+
+def conf_of(entry: ConfigEntry) -> dict[str, Any]:
+    """Configuration en vigueur d'une entrée.
+
+    Les options, dès qu'elles existent, portent la configuration complète
+    (l'assistant des options enregistre tout) : on les prend seules. Une
+    fusion avec `entry.data` ferait revenir un champ facultatif vidé dans
+    les options (présence réseau, notification).
+    """
+    return dict(entry.options or entry.data)

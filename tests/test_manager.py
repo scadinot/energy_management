@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import asyncio
 from datetime import timedelta
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, State, callback
+from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.util import dt as dt_util
@@ -15,11 +17,34 @@ from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_fire_time_changed,
     mock_restore_cache,
+    mock_restore_cache_with_extra_data,
 )
 
+from custom_components.energy_management import manager as manager_module
 from custom_components.energy_management import reconciler
 from custom_components.energy_management.const import (
+    CONF_CHARGE,
+    CONF_CHARGE_BOOST,
+    CONF_CHARGE_NORMAL,
+    CONF_COLOR_TODAY,
+    CONF_COLOR_TOMORROW,
+    CONF_EV_POWER,
+    CONF_EV_THRESHOLD,
+    CONF_GAP,
+    CONF_GRID,
+    CONF_HIGH,
+    CONF_HIGH_NORMAL,
+    CONF_LOW,
+    CONF_LOW_NORMAL,
+    CONF_MODE_SELECT,
+    CONF_OFF_PEAK,
+    CONF_OPTION_BATTERY,
+    CONF_OPTION_GRID,
+    CONF_PHENOMENA,
     CONF_RESERVE_NORMAL,
+    CONF_RESERVE_VIGILANCE,
+    CONF_SOC,
+    CONF_VIGILANCE,
     DOMAIN,
     signal_update,
 )
@@ -36,6 +61,31 @@ from .const import (
 )
 
 RESTORED_ID = "switch.energy_management_pilotage"
+
+# Champs des trois étapes des options
+_STEP_1 = [
+    CONF_COLOR_TODAY,
+    CONF_COLOR_TOMORROW,
+    CONF_OFF_PEAK,
+    CONF_VIGILANCE,
+    CONF_PHENOMENA,
+    CONF_SOC,
+    CONF_EV_POWER,
+    CONF_GRID,
+]
+_STEP_2 = [CONF_MODE_SELECT, CONF_LOW, CONF_HIGH, CONF_CHARGE]
+_STEP_3 = [
+    CONF_OPTION_GRID,
+    CONF_OPTION_BATTERY,
+    CONF_RESERVE_NORMAL,
+    CONF_RESERVE_VIGILANCE,
+    CONF_GAP,
+    CONF_LOW_NORMAL,
+    CONF_HIGH_NORMAL,
+    CONF_CHARGE_NORMAL,
+    CONF_CHARGE_BOOST,
+    CONF_EV_THRESHOLD,
+]
 
 
 @pytest.fixture(autouse=True)
@@ -86,8 +136,13 @@ async def _tick(hass: HomeAssistant, seconds: int = 61) -> None:
     await hass.async_block_till_done()
 
 
-def _restore(hass: HomeAssistant, entry: MockConfigEntry, state: str) -> None:
-    """Prépare le registre et l'état restauré de l'interrupteur Pilotage."""
+def _restore(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    state: str,
+    extra: dict[str, Any] | None = None,
+) -> None:
+    """Prépare le registre et l'état restauré (et ses données en plus) du Pilotage."""
     entry.add_to_hass(hass)
     er.async_get(hass).async_get_or_create(
         "switch",
@@ -96,7 +151,27 @@ def _restore(hass: HomeAssistant, entry: MockConfigEntry, state: str) -> None:
         suggested_object_id="energy_management_pilotage",
         config_entry=entry,
     )
-    mock_restore_cache(hass, [State(RESTORED_ID, state)])
+    if extra is None:
+        mock_restore_cache(hass, [State(RESTORED_ID, state)])
+    else:
+        mock_restore_cache_with_extra_data(hass, [(State(RESTORED_ID, state), extra)])
+
+
+async def _options_sans_reseau(hass: HomeAssistant, entry: MockConfigEntry) -> None:
+    """Passe les trois étapes des options en vidant la présence réseau."""
+    conf = {**entry.data, **entry.options}
+    steps = (
+        [key for key in _STEP_1 if key != CONF_GRID],
+        _STEP_2,
+        _STEP_3,
+    )
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    for keys in steps:
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {key: conf[key] for key in keys if key in conf}
+        )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
 
 
 async def _matin_rouge(hass, entry, fake_inverter) -> EnergyManager:
@@ -289,6 +364,92 @@ async def test_erreur_inattendue_journalisee(
     assert "boum" in caplog.text
     assert manager.pilotage is True
     assert manager.decision.state == "reseau"
+    # Erreur dans la lecture des entrées : journalisée aussi
+    with patch.object(
+        manager_module, "read_inputs", side_effect=KeyError("entrée")
+    ):
+        await _tick(hass)
+    assert "entrée" in caplog.text
+    # Patch retiré : le calcul suivant fonctionne normalement
+    _set(hass, LOW, "40")
+    await _tick(hass)
+    assert fake_inverter.calls == [(LOW, 50)]
+    assert manager.gaps == []
+
+
+async def test_coupure_reseau_interrompt_sequence(
+    hass, base_states, fake_inverter, mock_entry, monkeypatch
+):
+    monkeypatch.setattr(reconciler, "READBACK_TIMEOUT", 1)
+    fake_inverter.delay[HIGH] = 0.5
+    manager = await _setup(hass, mock_entry)
+    await _pilotage(hass, mock_entry, True)
+    _set(hass, COLOR_TODAY, "Rouge")
+    # Attendre que le 13 soit écrit et sa relecture en attente
+    async with asyncio.timeout(5):
+        while (HIGH, 35) not in fake_inverter.calls:
+            await asyncio.sleep(0.01)
+    assert fake_inverter.calls == [(LOW, 30), (HIGH, 35)]
+    _set(hass, GRID, "off")
+    await hass.async_block_till_done()
+    assert manager.pilotage is True
+    assert (MODE_SELECT, SBU) not in fake_inverter.calls
+    await _tick(hass)
+    assert fake_inverter.calls == [(LOW, 30), (HIGH, 35)]
+    assert manager.decision.state == "coupure_reseau"
+
+
+async def test_remise_conservee_au_redemarrage(
+    hass, base_states, fake_inverter, mock_entry
+):
+    _set(hass, MODE_SELECT, SBU)
+    _set(hass, LOW, "30")
+    _set(hass, HIGH, "35")
+    _restore(hass, mock_entry, "off", {"remise_en_attente": True})
+    manager = await _setup(hass, mock_entry)
+    assert manager.pilotage is False
+    assert fake_inverter.calls[-3:] == [(MODE_SELECT, UTI), (HIGH, 95), (LOW, 50)]
+    assert manager.reset_pending is False
+
+
+async def test_remise_conservee_au_rechargement(
+    hass, base_states, fake_inverter, mock_entry
+):
+    await _matin_rouge(hass, mock_entry, fake_inverter)
+    fake_inverter.calls.clear()
+    _set(hass, GRID, "off")
+    await hass.async_block_till_done()
+    await _pilotage(hass, mock_entry, False)
+    assert mock_entry.runtime_data.reset_pending is True
+    await hass.config_entries.async_reload(mock_entry.entry_id)
+    await hass.async_block_till_done()
+    manager = mock_entry.runtime_data
+    assert manager.pilotage is False
+    assert manager.reset_pending is True
+    assert fake_inverter.calls == []
+    _set(hass, GRID, "on")
+    await hass.async_block_till_done()
+    assert fake_inverter.calls == [(MODE_SELECT, UTI), (HIGH, 95), (LOW, 50)]
+    assert manager.reset_pending is False
+
+
+async def test_options_retire_presence_reseau(
+    hass, base_states, fake_inverter, mock_entry
+):
+    await _setup(hass, mock_entry)
+    await _options_sans_reseau(hass, mock_entry)
+    manager = mock_entry.runtime_data
+    assert CONF_GRID not in manager.conf
+    # Capteur retiré puis indisponible : plus de gel
+    _set(hass, GRID, "unavailable")
+    await hass.async_block_till_done()
+    assert manager.decision.state == "reseau"
+    # Les options suivantes ne le proposent plus
+    result = await hass.config_entries.options.async_init(mock_entry.entry_id)
+    schema = result["data_schema"].schema
+    grid = next(key for key in schema if key == CONF_GRID)
+    assert not (grid.description or {}).get("suggested_value")
+    hass.config_entries.options.async_abort(result["flow_id"])
 
 
 async def test_options_rechargent_sans_remise(

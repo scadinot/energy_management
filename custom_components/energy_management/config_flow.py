@@ -46,6 +46,7 @@ from .const import (
     DEFAULTS,
     DOMAIN,
     KNOWN_PHENOMENA,
+    conf_of,
 )
 
 # Champs facultatifs : absents de la configuration s'ils sont laissés vides
@@ -321,7 +322,7 @@ class EnergyManagementOptionsFlow(_StepsMixin, OptionsFlow):
     ) -> ConfigFlowResult:
         """Étape 1 : sources, préremplies avec la configuration actuelle."""
         if not hasattr(self, "_data"):
-            self._data = {**self.config_entry.data, **self.config_entry.options}
+            self._data = conf_of(self.config_entry)
         return await self._sources("init", user_input)
 
     async def _finish(self) -> ConfigFlowResult:
