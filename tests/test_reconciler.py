@@ -195,14 +195,22 @@ async def test_should_continue_entre_les_essais(hass, base_states, fake_inverter
     create.assert_not_called()
 
 
-async def test_relecture_non_numerique_est_un_echec(hass, base_states, notifs):
+async def test_relecture_non_numerique_est_un_echec(hass, base_states, notifs, caplog):
     """Un seuil relu « unavailable » ne vaut pas relecture réussie."""
+    appels: list[str] = []
+
     async def _indisponible(call: ServiceCall) -> None:
+        appels.append(call.data["entity_id"])
         hass.states.async_set(call.data["entity_id"], "unavailable")
 
     hass.services.async_register("number", "set_value", _indisponible)
+    hass.services.async_register("select", "select_option", _indisponible)
     rec = Reconciler(hass, MOCK_CONF)
     assert await rec.async_apply(Targets("battery", 30, 35, 15), 5) is False
+    # Trois essais sur le seuil 12, rien d'écrit ensuite (ni seuil 13, ni mode)
+    assert appels == [LOW] * 3
+    # Aucune exception dans la fonction de relecture (écouteur d'événement)
+    assert not [r for r in caplog.records if r.levelname == "ERROR" or r.exc_info]
 
 
 async def test_service_notify_introuvable(hass, base_states, fake_inverter, notifs):

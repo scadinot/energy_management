@@ -77,6 +77,8 @@ La décision est calculée **que le Pilotage soit actif ou non** : l'interrupteu
 
 ## Installation
 
+Version minimale de Home Assistant : **2026.3.0** (voir `hacs.json`).
+
 ### Via HACS (recommandé)
 
 1. Dans HACS, menu ⋮ → **Dépôts personnalisés**, ajouter le dépôt de l'intégration avec la catégorie **Intégration**.
@@ -220,7 +222,7 @@ La CI GitHub Actions (tests, validation HACS, Hassfest) tourne sous Linux avec P
 - [ROADMAP.md](ROADMAP.md)
 - [CHANGELOG.md](CHANGELOG.md)
 
-Documentation et suivi des anomalies : <https://github.com/scadinot/energy_management> et <https://github.com/scadinot/energy_management/issues>.
+Le dépôt GitHub (documentation et suivi des anomalies) est à venir : les liens du manifeste ne seront valides qu'à sa création.
 
 ## Licence
 
