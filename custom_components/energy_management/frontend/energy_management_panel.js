@@ -98,6 +98,24 @@ class EnergyManagementPanel extends HTMLElement {
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  // Entité créée par l'extension, retrouvée dans le registre par sa clé de
+  // traduction : un renommage (pièce, identifiant) ne casse pas l'affichage.
+  // Repli sur l'identifiant transmis à l'enregistrement du panneau.
+  _own(key) {
+    const ents = this._hass && this._hass.entities;
+    if (ents) {
+      if (ents !== this._entsRef) { this._entsRef = ents; this._ownCache = {}; }
+      if (!(key in this._ownCache)) {
+        const hit = Object.values(ents).find(
+          (e) => e && e.platform === 'energy_management' && e.translation_key === key,
+        );
+        this._ownCache[key] = hit ? hit.entity_id : null;
+      }
+      if (this._ownCache[key]) return this._ownCache[key];
+    }
+    return this._cfg[`${key}_entity`] || null;
+  }
+
   _fmtState(id) {
     const s = this._state(id);
     if (!s) return '—';
@@ -177,15 +195,15 @@ class EnergyManagementPanel extends HTMLElement {
 
   _renderHeader() {
     const c = this._cfg;
-    const on = this._text(c.pilotage_entity) === 'on';
-    const available = this._state(c.pilotage_entity) !== null;
-    const ecartOn = this._text(c.ecart_entity) === 'on';
-    const commandes = this._attrs(c.ecart_entity).commandes || [];
+    const on = this._text(this._own('pilotage')) === 'on';
+    const available = this._state(this._own('pilotage')) !== null;
+    const ecartOn = this._text(this._own('ecart')) === 'on';
+    const commandes = this._attrs(this._own('ecart')).commandes || [];
     const ecart = ecartOn
       ? `<span class="badge err">Écart : ${this._esc(commandes.join(', '))}</span>`
       : '<span class="badge ok">Aucun écart</span>';
     // Remise aux valeurs normales pas terminée : commandes encore à remettre
-    const pilotage = this._attrs(c.pilotage_entity);
+    const pilotage = this._attrs(this._own('pilotage'));
     const aRemettre = Array.isArray(pilotage.commandes_a_remettre) ? pilotage.commandes_a_remettre : [];
     const remise = pilotage.remise_en_attente === true
       ? `<span class="badge warn">Remise en attente : ${this._esc(aRemettre.join(', '))}</span>`
@@ -205,7 +223,7 @@ class EnergyManagementPanel extends HTMLElement {
   }
 
   _onPilotage(input) {
-    const id = this._cfg.pilotage_entity;
+    const id = this._own('pilotage');
     const on = input.checked;
     const message = on
       ? 'Activer le Pilotage ? Energy Management pourra écrire sur l\'onduleur.'
@@ -266,7 +284,7 @@ class EnergyManagementPanel extends HTMLElement {
   _renderBattery() {
     const c = this._cfg;
     const soc = this._num(c.soc);
-    const reserve = this._num(c.reserve_active_entity);
+    const reserve = this._num(this._own('reserve_active'));
     let grid;
     if (!c.grid_presence || !this._state(c.grid_presence)) {
       grid = '<span class="badge">Non configurée</span>';
@@ -284,9 +302,9 @@ class EnergyManagementPanel extends HTMLElement {
 
   _renderDecision() {
     const c = this._cfg;
-    const raw = this._text(c.mode_voulu_entity);
-    const label = this._known(c.mode_voulu_entity) ? this._fmtState(c.mode_voulu_entity) : '—';
-    const raison = this._known(c.raison_entity) ? this._text(c.raison_entity) : '—';
+    const raw = this._text(this._own('mode_voulu'));
+    const label = this._known(this._own('mode_voulu')) ? this._fmtState(this._own('mode_voulu')) : '—';
+    const raison = this._known(this._own('raison')) ? this._text(this._own('raison')) : '—';
     this._set('decision', `
       <h2>Décision</h2>
       <div class="big" title="${this._esc(raw)}">${this._esc(label)}</div>
@@ -305,7 +323,7 @@ class EnergyManagementPanel extends HTMLElement {
 
   _renderInverters() {
     const c = this._cfg;
-    const attrs = this._attrs(c.mode_voulu_entity);
+    const attrs = this._attrs(this._own('mode_voulu'));
     const rows = COMMANDS.map((cmd) => {
       const id = c[cmd.key];
       const want = this._wanted(cmd, attrs);

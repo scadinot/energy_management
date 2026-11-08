@@ -6,6 +6,13 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Non publié]
 
+## [0.1.1] - 2026-11-08
+
+### Corrigé
+
+- Panneau : les entités de l'extension (Pilotage, Mode voulu, Raison, Réserve active, Écart) sont retrouvées dans le registre par leur clé de traduction. Un renommage après l'installation (par exemple en plaçant l'appareil dans une pièce) ne vide plus les blocs Décision, Réserve active et Voulu, et ne désactive plus la case Pilotage. Les identifiants transmis à l'enregistrement du panneau restent un repli.
+- Test du panneau exécuté avec Node (DOM minimal), sauté si Node est absent.
+
 ## [0.1.0] - 2026-11-08
 
 Première version.
