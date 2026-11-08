@@ -64,6 +64,16 @@ async def test_aucune_reecriture(hass, base_states, fake_inverter, notifs):
     assert fake_inverter.calls == []
 
 
+async def test_commande_indisponible_pas_terminee(
+    hass, base_states, fake_inverter, notifs
+):
+    """Rien d'écrit, mais une commande illisible : la séquence n'est pas finie."""
+    hass.states.async_set(CHARGE, "unavailable")
+    rec = Reconciler(hass, MOCK_CONF)
+    assert await rec.async_apply(Targets("grid", 50, 95, 15), 5) is False
+    assert fake_inverter.calls == []
+
+
 async def test_attend_la_relecture(hass, base_states, fake_inverter, notifs, monkeypatch):
     monkeypatch.setattr(reconciler, "READBACK_TIMEOUT", 0.5)
     fake_inverter.delay[LOW] = 0.02

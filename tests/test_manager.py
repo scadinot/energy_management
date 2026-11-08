@@ -51,6 +51,7 @@ from custom_components.energy_management.const import (
 from custom_components.energy_management.manager import EnergyManager
 
 from .const import (
+    CHARGE,
     COLOR_TODAY,
     GRID,
     HIGH,
@@ -249,6 +250,46 @@ async def test_coupure_pilotage_remet_les_normales(
     count = len(fake_inverter.calls)
     await _tick(hass)
     assert len(fake_inverter.calls) == count
+
+
+async def test_remise_attend_le_retour_du_select(
+    hass, base_states, fake_inverter, mock_entry
+):
+    """Select indisponible à la coupure : la remise reste due jusqu'au mode réseau."""
+    manager = await _matin_rouge(hass, mock_entry, fake_inverter)
+    fake_inverter.calls.clear()
+    _set(hass, MODE_SELECT, "unavailable")
+    await hass.async_block_till_done()
+    await _pilotage(hass, mock_entry, False)
+    # Seuils remis, mode illisible donc non écrit : remise pas terminée
+    assert fake_inverter.calls == [(HIGH, 95), (LOW, 50)]
+    assert manager.reset_pending is True
+    # Le select revient, toujours en SBU : la vérification suivante finit la remise
+    _set(hass, MODE_SELECT, SBU)
+    await hass.async_block_till_done()
+    await _tick(hass)
+    assert fake_inverter.calls[-1] == (MODE_SELECT, UTI)
+    assert manager.reset_pending is False
+    # Remise finie : plus aucune écriture ensuite
+    count = len(fake_inverter.calls)
+    await _tick(hass)
+    assert len(fake_inverter.calls) == count
+
+
+async def test_remise_tout_indisponible_reste_due(
+    hass, base_states, fake_inverter, mock_entry
+):
+    manager = await _matin_rouge(hass, mock_entry, fake_inverter)
+    fake_inverter.calls.clear()
+    for entity_id in (MODE_SELECT, LOW, HIGH, CHARGE):
+        _set(hass, entity_id, "unavailable")
+    await hass.async_block_till_done()
+    await _pilotage(hass, mock_entry, False)
+    assert fake_inverter.calls == []
+    assert manager.reset_pending is True
+    await _tick(hass)
+    assert fake_inverter.calls == []
+    assert manager.reset_pending is True
 
 
 async def test_redemarrage_pilotage_coupe_aucune_ecriture(

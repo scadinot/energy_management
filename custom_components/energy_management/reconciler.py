@@ -193,8 +193,14 @@ class Reconciler:
         gap: float,
         should_continue: Callable[[], bool] = lambda: True,
     ) -> bool:
-        """Écrit ce qui manque ; True si tout a été relu, False sinon ou si occupé."""
+        """Écrit ce qui manque.
+
+        True seulement si, après la séquence, les quatre commandes sont relues
+        à leur valeur voulue ; False sinon (échec, arrêt demandé, commande
+        indisponible donc non écrite) ou si une séquence est déjà en cours.
+        """
         if self._lock.locked():
+            _LOGGER.debug("Séquence d'écritures déjà en cours : vérification ignorée")
             return False
         async with self._lock:
             actual = read_actual(self._hass, self._conf)
@@ -206,7 +212,9 @@ class Reconciler:
                 # False = échec ou arrêt demandé : la séquence s'arrête.
                 if not await self._write(write, should_continue):
                     return False
-            return True
+            # plan_writes omet une commande illisible : seule la relecture
+            # finale dit si tout est vraiment en place.
+            return not compute_gaps(read_actual(self._hass, self._conf), desired)
 
     async def _write(
         self, write: Write, should_continue: Callable[[], bool]
