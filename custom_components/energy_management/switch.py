@@ -15,8 +15,9 @@ from homeassistant.helpers.restore_state import (
 )
 
 from .manager import EnergyManager, device_info
+from .reconciler import COMMANDS
 
-# Clé des données conservées : remise aux normales demandée, pas encore faite
+# Clé des données conservées : commandes encore à remettre aux normales
 RESET_PENDING = "remise_en_attente"
 
 
@@ -27,6 +28,19 @@ async def async_setup_entry(
 ) -> None:
     """Ajoute l'interrupteur Pilotage."""
     async_add_entities([PilotageSwitch(entry)])
+
+
+def _restored_reset(value: Any) -> set[str]:
+    """Commandes à remettre lues dans les données conservées.
+
+    Liste de commandes (valeurs inconnues ignorées) ; ancien format booléen :
+    True = toutes les commandes ; autre chose ou absent = rien.
+    """
+    if value is True:
+        return set(COMMANDS)
+    if isinstance(value, list):
+        return {command for command in COMMANDS if command in value}
+    return set()
 
 
 class PilotageSwitch(SwitchEntity, RestoreEntity):
@@ -46,10 +60,14 @@ class PilotageSwitch(SwitchEntity, RestoreEntity):
         """État du Pilotage tenu par le manager."""
         return self._manager.pilotage
 
+    def _pending(self) -> list[str]:
+        """Commandes encore à remettre, dans l'ordre de COMMANDS."""
+        return [c for c in COMMANDS if c in self._manager.reset_pending]
+
     @property
     def extra_restore_state_data(self) -> ExtraStoredData:
         """Conserve une remise demandée au redémarrage et au rechargement."""
-        return RestoredExtraData({RESET_PENDING: self._manager.reset_pending})
+        return RestoredExtraData({RESET_PENDING: self._pending()})
 
     async def async_added_to_hass(self) -> None:
         """Restaure l'état et une remise déjà demandée.
@@ -63,8 +81,10 @@ class PilotageSwitch(SwitchEntity, RestoreEntity):
             await self._manager.async_set_pilotage(True, restored=True)
             return
         extra = await self.async_get_last_extra_data()
-        if extra is not None and extra.as_dict().get(RESET_PENDING) is True:
-            self._manager.reset_pending = True
+        if extra is not None:
+            self._manager.reset_pending = _restored_reset(
+                extra.as_dict().get(RESET_PENDING)
+            )
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Allume le Pilotage."""

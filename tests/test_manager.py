@@ -12,6 +12,7 @@ from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import CoreState, HomeAssistant, State, callback
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import restore_state
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import (
@@ -50,6 +51,12 @@ from custom_components.energy_management.const import (
     signal_update,
 )
 from custom_components.energy_management.manager import EnergyManager
+from custom_components.energy_management.reconciler import (
+    CMD_CHARGE,
+    CMD_HIGH,
+    CMD_MODE,
+    COMMANDS,
+)
 
 from .const import (
     CHARGE,
@@ -247,7 +254,7 @@ async def test_coupure_pilotage_remet_les_normales(
     manager = await _matin_rouge(hass, mock_entry, fake_inverter)
     await _pilotage(hass, mock_entry, False)
     assert fake_inverter.calls[-3:] == [(MODE_SELECT, UTI), (HIGH, 95), (LOW, 50)]
-    assert manager.reset_pending is False
+    assert manager.reset_pending == set()
     count = len(fake_inverter.calls)
     await _tick(hass)
     assert len(fake_inverter.calls) == count
@@ -264,13 +271,13 @@ async def test_remise_attend_le_retour_du_select(
     await _pilotage(hass, mock_entry, False)
     # Seuils remis, mode illisible donc non écrit : remise pas terminée
     assert fake_inverter.calls == [(HIGH, 95), (LOW, 50)]
-    assert manager.reset_pending is True
+    assert manager.reset_pending == {CMD_MODE}
     # Le select revient, toujours en SBU : la vérification suivante finit la remise
     _set(hass, MODE_SELECT, SBU)
     await hass.async_block_till_done()
     await _tick(hass)
     assert fake_inverter.calls[-1] == (MODE_SELECT, UTI)
-    assert manager.reset_pending is False
+    assert manager.reset_pending == set()
     # Remise finie : plus aucune écriture ensuite
     count = len(fake_inverter.calls)
     await _tick(hass)
@@ -287,10 +294,10 @@ async def test_remise_tout_indisponible_reste_due(
     await hass.async_block_till_done()
     await _pilotage(hass, mock_entry, False)
     assert fake_inverter.calls == []
-    assert manager.reset_pending is True
+    assert manager.reset_pending == set(COMMANDS)
     await _tick(hass)
     assert fake_inverter.calls == []
-    assert manager.reset_pending is True
+    assert manager.reset_pending == set(COMMANDS)
 
 
 async def test_redemarrage_pilotage_coupe_aucune_ecriture(
@@ -306,7 +313,7 @@ async def test_redemarrage_pilotage_coupe_aucune_ecriture(
     await _tick(hass, 122)
     assert fake_inverter.calls == []
     assert manager.pilotage is False
-    assert manager.reset_pending is False
+    assert manager.reset_pending == set()
     assert hass.states.get(RESTORED_ID).state == "off"
 
 
@@ -315,7 +322,7 @@ async def test_redemarrage_pilotage_actif(hass, base_states, fake_inverter, mock
     _restore(hass, mock_entry, "on")
     manager = await _setup(hass, mock_entry)
     assert manager.pilotage is True
-    assert manager.reset_pending is False
+    assert manager.reset_pending == set()
     assert hass.states.get(RESTORED_ID).state == "on"
     assert fake_inverter.calls == [(LOW, 30), (HIGH, 35), (MODE_SELECT, SBU)]
     assert manager.gaps == []
@@ -378,12 +385,12 @@ async def test_remise_differee_au_demarrage_complet(
     manager = await _setup(hass, mock_entry)
     await _tick(hass)
     assert fake_inverter.calls == []
-    assert manager.reset_pending is True
+    assert manager.reset_pending == set(COMMANDS)
     hass.set_state(CoreState.running)
     hass.bus.async_fire(EVENT_HOMEASSISTANT_STARTED)
     await hass.async_block_till_done()
     assert fake_inverter.calls == [(MODE_SELECT, UTI), (HIGH, 95), (LOW, 50)]
-    assert manager.reset_pending is False
+    assert manager.reset_pending == set()
 
 
 async def test_reseau_absent_gel(hass, base_states, fake_inverter, mock_entry):
@@ -410,13 +417,13 @@ async def test_remise_reportee_pendant_coupure(
     await hass.async_block_till_done()
     await _pilotage(hass, mock_entry, False)
     assert fake_inverter.calls == []
-    assert manager.reset_pending is True
+    assert manager.reset_pending == set(COMMANDS)
     await _tick(hass)
     assert fake_inverter.calls == []
     _set(hass, GRID, "on")
     await hass.async_block_till_done()
     assert fake_inverter.calls == [(MODE_SELECT, UTI), (HIGH, 95), (LOW, 50)]
-    assert manager.reset_pending is False
+    assert manager.reset_pending == set()
 
 
 async def test_remise_annulee_si_pilotage_reactive(
@@ -428,7 +435,7 @@ async def test_remise_annulee_si_pilotage_reactive(
     await hass.async_block_till_done()
     await _pilotage(hass, mock_entry, False)
     await _pilotage(hass, mock_entry, True)
-    assert manager.reset_pending is False
+    assert manager.reset_pending == set()
     _set(hass, GRID, "on")
     await hass.async_block_till_done()
     # Jour rouge toujours en cours : déjà en SBU 30/35, rien à écrire
@@ -516,7 +523,7 @@ async def test_remise_conservee_au_redemarrage(
     manager = await _setup(hass, mock_entry)
     assert manager.pilotage is False
     assert fake_inverter.calls[-3:] == [(MODE_SELECT, UTI), (HIGH, 95), (LOW, 50)]
-    assert manager.reset_pending is False
+    assert manager.reset_pending == set()
 
 
 async def test_remise_conservee_au_rechargement(
@@ -527,17 +534,17 @@ async def test_remise_conservee_au_rechargement(
     _set(hass, GRID, "off")
     await hass.async_block_till_done()
     await _pilotage(hass, mock_entry, False)
-    assert mock_entry.runtime_data.reset_pending is True
+    assert mock_entry.runtime_data.reset_pending == set(COMMANDS)
     await hass.config_entries.async_reload(mock_entry.entry_id)
     await hass.async_block_till_done()
     manager = mock_entry.runtime_data
     assert manager.pilotage is False
-    assert manager.reset_pending is True
+    assert manager.reset_pending == set(COMMANDS)
     assert fake_inverter.calls == []
     _set(hass, GRID, "on")
     await hass.async_block_till_done()
     assert fake_inverter.calls == [(MODE_SELECT, UTI), (HIGH, 95), (LOW, 50)]
-    assert manager.reset_pending is False
+    assert manager.reset_pending == set()
 
 
 async def test_verrou_commun_au_rechargement(
@@ -622,4 +629,106 @@ async def test_echec_du_panneau_arrete_le_manager(
     _set(hass, COLOR_TODAY, "Rouge")
     await hass.async_block_till_done()
     await _tick(hass)
+    assert fake_inverter.calls == []
+
+
+async def _remise_sans_charge(hass, entry, fake_inverter) -> EnergyManager:
+    """Jour rouge en SBU 30/35, entité de charge supprimée, puis Pilotage coupé."""
+    manager = await _matin_rouge(hass, entry, fake_inverter)
+    fake_inverter.calls.clear()
+    hass.states.async_remove(CHARGE)
+    await hass.async_block_till_done()
+    await _pilotage(hass, entry, False)
+    assert fake_inverter.calls == [(MODE_SELECT, UTI), (HIGH, 95), (LOW, 50)]
+    assert manager.reset_pending == {CMD_CHARGE}
+    return manager
+
+
+def _restore_data(hass: HomeAssistant, entity_id: str) -> dict[str, Any]:
+    """Données de restauration que l'interrupteur enregistrerait maintenant."""
+    stored = next(
+        s
+        for s in restore_state.async_get(hass).async_get_stored_states()
+        if s.state.entity_id == entity_id
+    )
+    assert stored.extra_data is not None
+    return stored.extra_data.as_dict()
+
+
+async def test_remise_ne_reecrit_pas_un_reglage_manuel(
+    hass, base_states, fake_inverter, mock_entry
+):
+    """Charge définitivement absente : la remise ne réécrit pas un seuil réglé à la main."""
+    await _remise_sans_charge(hass, mock_entry, fake_inverter)
+    switch_id = _switch_id(hass, mock_entry)
+    assert _restore_data(hass, switch_id) == {"remise_en_attente": [CMD_CHARGE]}
+    _set(hass, LOW, "40")
+    await hass.async_block_till_done()
+    await _tick(hass, 61)
+    await _tick(hass, 122)
+    assert fake_inverter.calls == [(MODE_SELECT, UTI), (HIGH, 95), (LOW, 50)]
+
+
+async def test_restauration_ancien_format_booleen(
+    hass, base_states, fake_inverter, mock_entry
+):
+    _set(hass, MODE_SELECT, SBU)
+    _set(hass, LOW, "30")
+    _set(hass, HIGH, "35")
+    _restore(hass, mock_entry, "off", {"remise_en_attente": True})
+    hass.set_state(CoreState.starting)
+    manager = await _setup(hass, mock_entry)
+    # Avant le premier calcul effectif : toutes les commandes à remettre
+    assert manager.reset_pending == set(COMMANDS)
+    assert fake_inverter.calls == []
+    hass.set_state(CoreState.running)
+    hass.bus.async_fire(EVENT_HOMEASSISTANT_STARTED)
+    await hass.async_block_till_done()
+    assert fake_inverter.calls == [(MODE_SELECT, UTI), (HIGH, 95), (LOW, 50)]
+    assert manager.reset_pending == set()
+
+
+async def test_restauration_liste_de_commandes(
+    hass, base_states, fake_inverter, mock_entry
+):
+    """Nouveau format : seules les commandes listées sont remises ; inconnues ignorées."""
+    _set(hass, MODE_SELECT, SBU)
+    _set(hass, LOW, "30")
+    _set(hass, HIGH, "35")
+    _restore(
+        hass, mock_entry, "off", {"remise_en_attente": [CMD_MODE, CMD_HIGH, "inconnue"]}
+    )
+    hass.set_state(CoreState.starting)
+    manager = await _setup(hass, mock_entry)
+    assert manager.reset_pending == {CMD_MODE, CMD_HIGH}
+    hass.set_state(CoreState.running)
+    hass.bus.async_fire(EVENT_HOMEASSISTANT_STARTED)
+    await hass.async_block_till_done()
+    # Le seuil 12, absent de la liste, garde sa valeur (30/95 respecte l'écart)
+    assert fake_inverter.calls == [(MODE_SELECT, UTI), (HIGH, 95)]
+    assert hass.states.get(LOW).state == "30"
+    assert manager.reset_pending == set()
+
+
+async def test_restauration_ancien_format_faux(
+    hass, base_states, fake_inverter, mock_entry
+):
+    """Ancien format, remise déjà faite : rien à remettre, aucune écriture."""
+    _set(hass, MODE_SELECT, SBU)
+    _restore(hass, mock_entry, "off", {"remise_en_attente": False})
+    manager = await _setup(hass, mock_entry)
+    await _tick(hass)
+    assert manager.reset_pending == set()
+    assert fake_inverter.calls == []
+
+
+async def test_coupure_deja_coupe_sans_remise(
+    hass, base_states, fake_inverter, mock_entry
+):
+    """Couper un Pilotage déjà coupé ne demande aucune remise."""
+    manager = await _setup(hass, mock_entry)
+    _set(hass, LOW, "40")
+    await _pilotage(hass, mock_entry, False)
+    await _tick(hass)
+    assert manager.reset_pending == set()
     assert fake_inverter.calls == []

@@ -139,3 +139,45 @@ def test_mode_inconnu():
 def test_compute_gaps():
     actual = Actual(MODE_GRID, None, 95, 20)
     assert compute_gaps(actual, NORMAL) == [CMD_LOW, CMD_CHARGE]
+
+
+def test_only_limite_aux_commandes_visees():
+    actual = Actual(MODE_BATTERY, 30, 35, 20)
+    assert plan_writes(actual, NORMAL, GAP, only={CMD_MODE}) == [
+        Write(CMD_MODE, MODE_GRID)
+    ]
+
+
+def test_only_seuil_seul_respecte_invariant():
+    """Seuil 13 réglé à 40 à la main : écrire 12 = 50 donnerait 50/40."""
+    actual = Actual(MODE_GRID, 30, 40, 15)
+    assert plan_writes(actual, NORMAL, GAP, only={CMD_LOW}) == []
+
+
+def test_only_seuil_seul_autorise():
+    actual = Actual(MODE_GRID, 30, 95, 15)
+    assert plan_writes(actual, NORMAL, GAP, only={CMD_LOW}) == [Write(CMD_LOW, 50)]
+
+
+def test_only_seuil_13_seul_respecte_invariant():
+    """Seuil 12 réglé à 93 à la main : écrire 13 = 95 donnerait 93/95."""
+    actual = Actual(MODE_GRID, 93, 90, 15)
+    assert plan_writes(actual, NORMAL, GAP, only={CMD_HIGH}) == []
+
+
+def test_only_illisible_hors_cible_bloque_les_seuils():
+    """Seuil 13 illisible, hors cible : la règle d'abstention s'applique toujours."""
+    actual = Actual(MODE_GRID, 30, None, 15)
+    assert plan_writes(actual, NORMAL, GAP, only={CMD_LOW, CMD_CHARGE}) == []
+
+
+def test_only_none_inchange():
+    actual = Actual(MODE_BATTERY, 30, 35, 15)
+    assert plan_writes(actual, NORMAL, GAP, only=None) == plan_writes(
+        actual, NORMAL, GAP
+    )
+    assert plan_writes(actual, NORMAL, GAP, only=None) == [
+        Write(CMD_MODE, MODE_GRID),
+        Write(CMD_HIGH, 95),
+        Write(CMD_LOW, 50),
+    ]

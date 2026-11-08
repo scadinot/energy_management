@@ -14,6 +14,7 @@ from custom_components.energy_management import reconciler
 from custom_components.energy_management.const import CONF_NOTIFY
 from custom_components.energy_management.decision import Targets
 from custom_components.energy_management.reconciler import (
+    CMD_CHARGE,
     Actual,
     Reconciler,
     read_actual,
@@ -302,3 +303,12 @@ async def test_succes_efface_une_notification_d_avant_rechargement(
     assert await rec.async_apply(Targets("grid", 50, 95, 15), 5) is True
     dismiss.assert_called_once()
     assert dismiss.call_args.args[1] == "energy_management_echec_low"
+
+
+async def test_async_apply_only(hass, base_states, fake_inverter, notifs):
+    """Seule la commande visée est écrite ; les seuils en écart restent en l'état."""
+    rec = Reconciler(hass, MOCK_CONF)
+    result = await rec.async_apply(Targets("grid", 30, 35, 20), 5, only={CMD_CHARGE})
+    assert fake_inverter.calls == [(CHARGE, 20)]
+    # Terminé pour les commandes visées, même si les seuils restent en écart
+    assert result is True

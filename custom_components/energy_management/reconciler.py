@@ -4,8 +4,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from collections.abc import Callable, Collection, Mapping
+from dataclasses import dataclass, replace
 from typing import Any
 
 from homeassistant.components import persistent_notification
@@ -84,15 +84,47 @@ def _threshold_writes(actual: Actual, desired: Targets, gap: float) -> list[Writ
             # Les deux ordres conviennent, ou aucun : règle de la spec.
             high_first = desired.high > actual.high
         return [high, low] if high_first else [low, high]
+    # Un seul seuil à écrire : le couple obtenu doit respecter l'écart, sinon
+    # abstention. Ex. remise limitée au seuil 12 alors que le seuil 13 a été
+    # réglé à la main trop bas.
     if need_low:
-        return [low]
+        return [low] if actual.high >= desired.low + gap - NUMBER_TOLERANCE else []
     if need_high:
-        return [high]
+        return [high] if desired.high >= actual.low + gap - NUMBER_TOLERANCE else []
     return []
 
 
-def plan_writes(actual: Actual, desired: Targets, gap: float) -> list[Write]:
-    """Ordonne les écritures nécessaires pour passer de `actual` à `desired`."""
+def _restrict(actual: Actual, desired: Targets, only: Collection[str]) -> Targets:
+    """Cibles où chaque commande hors de `only` garde sa valeur relue.
+
+    Une commande illisible hors de `only` garde sa cible : elle reste
+    illisible, donc non écrite, et l'abstention des seuils s'applique.
+    """
+
+    def keep(command: str, current: Any, wanted: Any) -> Any:
+        return current if command not in only and current is not None else wanted
+
+    return replace(
+        desired,
+        mode=keep(CMD_MODE, actual.mode, desired.mode),
+        low=keep(CMD_LOW, actual.low, desired.low),
+        high=keep(CMD_HIGH, actual.high, desired.high),
+        charge=keep(CMD_CHARGE, actual.charge, desired.charge),
+    )
+
+
+def plan_writes(
+    actual: Actual,
+    desired: Targets,
+    gap: float,
+    only: Collection[str] | None = None,
+) -> list[Write]:
+    """Ordonne les écritures nécessaires pour passer de `actual` à `desired`.
+
+    `only` limite les écritures à ces commandes (None : toutes).
+    """
+    if only is not None:
+        desired = _restrict(actual, desired, only)
     need_mode = actual.mode is not None and actual.mode != desired.mode
     thresholds = _threshold_writes(actual, desired, gap)
     mode = Write(CMD_MODE, desired.mode)
@@ -200,12 +232,14 @@ class Reconciler:
         desired: Targets,
         gap: float,
         should_continue: Callable[[], bool] = lambda: True,
+        only: Collection[str] | None = None,
     ) -> bool:
-        """Écrit ce qui manque.
+        """Écrit ce qui manque, seulement sur les commandes de `only` si donné.
 
-        True seulement si, après la séquence, les quatre commandes sont relues
-        à leur valeur voulue ; False sinon (échec, arrêt demandé, commande
-        indisponible donc non écrite) ou si une séquence est déjà en cours.
+        True seulement si, après la séquence, les commandes visées (les quatre
+        si `only` vaut None) sont relues à leur valeur voulue ; False sinon
+        (échec, arrêt demandé, commande indisponible donc non écrite) ou si
+        une séquence est déjà en cours.
         """
         if self._lock.locked():
             _LOGGER.debug("Séquence d'écritures déjà en cours : vérification ignorée")
@@ -216,13 +250,15 @@ class Reconciler:
             gaps = compute_gaps(actual, desired)
             for command in sorted(self._failed - set(gaps)):
                 self._clear_failure(command)
-            for write in plan_writes(actual, desired, gap):
+            for write in plan_writes(actual, desired, gap, only):
                 # False = échec ou arrêt demandé : la séquence s'arrête.
                 if not await self._write(write, should_continue):
                     return False
             # plan_writes omet une commande illisible : seule la relecture
             # finale dit si tout est vraiment en place.
-            return not compute_gaps(read_actual(self._hass, self._conf), desired)
+            scope = set(COMMANDS if only is None else only)
+            remaining = compute_gaps(read_actual(self._hass, self._conf), desired)
+            return not scope.intersection(remaining)
 
     async def _write(
         self, write: Write, should_continue: Callable[[], bool]

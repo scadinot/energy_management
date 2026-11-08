@@ -26,7 +26,7 @@ from homeassistant.helpers.start import async_at_started
 from .const import DOMAIN, UPDATE_INTERVAL, conf_of, signal_update
 from .decision import STATE_OUTAGE, Decision, Settings, decide, normal_targets
 from .inputs import grid_present, input_entities, read_inputs, settings_from_conf
-from .reconciler import Reconciler, compute_gaps, read_actual
+from .reconciler import COMMANDS, Reconciler, compute_gaps, read_actual
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,7 +51,8 @@ class EnergyManager:
         self.pilotage = False  # coupé par défaut
         self.decision: Decision | None = None
         self.gaps: list[str] = []
-        self.reset_pending = False  # remise aux normales demandée, pas encore faite
+        # Commandes (CMD_*) encore à remettre aux valeurs normales ; vide = rien
+        self.reset_pending: set[str] = set()
         # Un verrou par entrée, conservé d'un rechargement à l'autre : une
         # séquence de l'ancien manager bloque le nouveau jusqu'à son arrêt.
         locks: dict[str, asyncio.Lock] = hass.data.setdefault(DOMAIN, {})
@@ -146,14 +147,7 @@ class EnergyManager:
         if self.hass.state is not CoreState.running:
             return
         if not self.pilotage and self.reset_pending:
-            if await self._reconciler.async_apply(
-                normal_targets(self.settings),
-                self.settings.gap,
-                should_continue=lambda: (
-                    self._running and not self.pilotage and self._grid()
-                ),
-            ):
-                self.reset_pending = False
+            await self._async_reset()
         elif self.pilotage and decision.targets is not None:
             await self._reconciler.async_apply(
                 decision.targets,
@@ -164,6 +158,30 @@ class EnergyManager:
             return
         self._update_gaps()
 
+    def _prune_reset(self) -> None:
+        """Retire de la remise les commandes relues à leur valeur normale.
+
+        Une commande illisible reste à remettre ; une commande remise puis
+        réglée à la main n'y revient jamais.
+        """
+        actual = read_actual(self.hass, self.conf)
+        self.reset_pending &= set(compute_gaps(actual, normal_targets(self.settings)))
+
+    async def _async_reset(self) -> None:
+        """Remise aux valeurs normales, limitée aux commandes encore à remettre."""
+        self._prune_reset()
+        if not self.reset_pending:
+            return
+        await self._reconciler.async_apply(
+            normal_targets(self.settings),
+            self.settings.gap,
+            should_continue=lambda: (
+                self._running and not self.pilotage and self._grid()
+            ),
+            only=frozenset(self.reset_pending),
+        )
+        self._prune_reset()
+
     async def async_set_pilotage(self, on: bool, *, restored: bool = False) -> None:
         """Allume ou coupe le Pilotage ; la coupure demande une remise aux normales.
 
@@ -172,9 +190,9 @@ class EnergyManager:
         l'interrupteur pendant une séquence d'écritures.
         """
         if on:
-            self.reset_pending = False
+            self.reset_pending = set()
         elif self.pilotage and not restored:
             # Décision 1 : remise seulement au passage actif → coupé.
-            self.reset_pending = True
+            self.reset_pending = set(COMMANDS)
         self.pilotage = on
         self._schedule_refresh()
