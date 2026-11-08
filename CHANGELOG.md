@@ -16,9 +16,10 @@ Première version.
 - **Réserve de secours ajustée selon la vigilance Météo-France** : 30 % normalement, 50 % si une vigilance orange ou rouge est active sur l'un des phénomènes surveillés.
 - **Charge réseau renforcée** (20 A) pendant les heures creuses qui précèdent un jour rouge, si la borne ne charge pas.
 - **Réconciliation** : état voulu des quatre commandes comparé à l'état réel à chaque changement d'entrée et chaque minute ; seuls les écarts sont corrigés, sans réécriture d'une valeur en place.
-- **Écritures sûres** : séquentielles, relecture jusqu'à 60 s, trois essais, ordre préservant 13 ≥ 12 + écart, mode batterie écrit seulement après relecture des deux seuils, abstention si un seuil est illisible, arrêt immédiat à la coupure du Pilotage ou du réseau.
-- **Notifications d'échec** : une par épisode et par commande (notification persistante et service `notify` facultatif), effacée au succès suivant.
-- **Verrou général Pilotage** (`switch`) : coupé par défaut, état conservé au redémarrage ; remise unique aux valeurs normales au passage actif vers coupé, reportée pendant une coupure réseau et conservée à un redémarrage ou un rechargement des options.
+- **Écritures sûres** : séquentielles, relecture jusqu'à 60 s, trois essais (un appel de service sans réponse au bout de 60 s compte comme un essai raté), ordre préservant 13 ≥ 12 + écart, mode batterie écrit seulement après relecture des deux seuils, abstention si un seuil est illisible, arrêt immédiat à la coupure du Pilotage ou du réseau, une seule séquence à la fois, y compris pendant un rechargement des options.
+- **Aucune écriture avant la fin du démarrage de Home Assistant** : calcul et affichage seulement, pour ne pas agir sur une couleur Tempo pas encore chargée.
+- **Notifications d'échec** : une par épisode et par commande (notification persistante et service `notify` facultatif, conservé dans les options quand aucun service `notify` n'est proposé), effacée au succès suivant.
+- **Verrou général Pilotage** (`switch`) : coupé par défaut, état conservé au redémarrage ; remise unique aux valeurs normales au passage actif vers coupé, terminée seulement quand le mode et les trois valeurs sont relus à leurs valeurs normales, reportée pendant une coupure réseau ou une commande indisponible, et conservée à un redémarrage ou un rechargement des options.
 - **Mode observation** : décision calculée même Pilotage coupé.
 - **Entités d'état** : Mode voulu, Raison, Réserve active, Écart.
 - **Panneau latéral** « Energy Management » (`/energy-management`), en lecture seule sauf l'interrupteur Pilotage.

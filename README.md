@@ -93,6 +93,10 @@ Version minimale de Home Assistant : **2026.3.0** (voir `hacs.json`).
 
 Une seule instance est possible (`single_config_entry`).
 
+### Désinstallation
+
+Avant de supprimer l'intégration, couper le Pilotage et attendre la remise aux valeurs normales (Écart éteint) : une fois l'intégration supprimée, plus rien ne remet les onduleurs en mode réseau.
+
 ## Configuration
 
 Assistant en trois étapes, toutes modifiables ensuite avec **Configurer** (options).
@@ -117,11 +121,12 @@ Assistant en trois étapes, toutes modifiables ensuite avec **Configurer** (opti
 | | Seuils normaux 12 / 13 | % | 50 / 95 |
 | | Charge normale / renforcée | A | 15 / 20 |
 | | Seuil « borne en charge » | W | 500 |
-| | Service de notification (facultatif) | service `notify` | à choisir |
+| | Service de notification (facultatif, proposé seulement s'il existe un service `notify`) | service `notify` | à choisir |
 
 Notes :
 
 - Les valeurs « réseau » et « batterie » se choisissent à l'étape 3, car leurs choix dépendent du `select` retenu à l'étape 2.
+- **Service de notification** : dans les options, s'il n'existe plus aucun service `notify` au moment de les modifier, le champ n'est pas proposé et la cible déjà enregistrée est conservée.
 - **Présence réseau** : facultative. Non configurée, le réseau est supposé présent. Configurée, seul l'état `on` compte comme présent (`off`, `unknown` et `unavailable` valent absent).
 - Contrôles de saisie : réserve sous vigilance ≥ réserve normale ; seuil 13 normal ≥ seuil 12 normal + écart ; valeurs dans les bornes des entités `number` choisies ; valeurs « réseau » et « batterie » présentes dans les options du `select` et différentes entre elles.
 
@@ -161,8 +166,15 @@ Pilotage coupé, l'intégration calcule et affiche, mais n'écrit rien. Pour ré
 
 - elle a lieu **une seule fois**, uniquement quand on passe le Pilotage de actif à coupé ; jamais à l'installation, jamais à un redémarrage avec le Pilotage déjà coupé ;
 - demandée pendant une coupure réseau, elle **attend le retour du réseau** ;
+- elle n'est **terminée que lorsque le mode et les trois valeurs sont relus à leurs valeurs normales** : une commande indisponible (donc non écrite) ou un échec la laisse en attente, et elle est retentée à chaque vérification ;
 - une remise pas encore faite **survit à un redémarrage de Home Assistant ou à un rechargement des options** (conservée dans les données de restauration de l'interrupteur) ;
 - si le Pilotage est réactivé entre-temps, la remise est annulée.
+
+Avant de supprimer l'intégration, couper le Pilotage et attendre la remise aux valeurs normales (Écart éteint) : une fois l'intégration supprimée, plus rien ne remet les onduleurs en mode réseau.
+
+### Démarrage de Home Assistant
+
+Tant que Home Assistant n'a pas fini de démarrer, l'intégration calcule et affiche mais **n'écrit rien** (ni réconciliation, ni remise) : la couleur Tempo peut ne pas être encore chargée alors que l'onduleur se lit déjà, ce qui ferait repasser un jour rouge en mode réseau puis en batterie. Le premier calcul avec écritures a lieu dès la fin du démarrage.
 
 ### Donnée indisponible ou inconnue : choix prudent
 
@@ -179,7 +191,7 @@ Pilotage coupé, l'intégration calcule et affiche, mais n'écrit rien. Pour ré
 
 ### Écritures
 
-- **Séquentielles** : une écriture, puis attente de la relecture de l'entité (jusqu'à 60 s) avant la suivante, avec trois essais. Deux écritures trop rapprochées avaient fait perdre une valeur à l'ESP.
+- **Séquentielles** : une écriture, puis attente de la relecture de l'entité (jusqu'à 60 s) avant la suivante, avec trois essais. Deux écritures trop rapprochées avaient fait perdre une valeur à l'ESP. Un appel de service sans réponse au bout de 60 s compte aussi comme un essai raté.
 - **Ordre imposé** :
   - vers le mode batterie : seuil 12, seuil 13, puis mode ;
   - vers le mode réseau : mode, seuil 13, puis seuil 12 ;
