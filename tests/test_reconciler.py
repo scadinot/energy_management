@@ -193,3 +193,22 @@ async def test_should_continue_entre_les_essais(hass, base_states, fake_inverter
     assert result is False
     assert fake_inverter.calls == [(LOW, 30)]
     create.assert_not_called()
+
+
+async def test_relecture_non_numerique_est_un_echec(hass, base_states, notifs):
+    """Un seuil relu « unavailable » ne vaut pas relecture réussie."""
+    async def _indisponible(call: ServiceCall) -> None:
+        hass.states.async_set(call.data["entity_id"], "unavailable")
+
+    hass.services.async_register("number", "set_value", _indisponible)
+    rec = Reconciler(hass, MOCK_CONF)
+    assert await rec.async_apply(Targets("battery", 30, 35, 15), 5) is False
+
+
+async def test_service_notify_introuvable(hass, base_states, fake_inverter, notifs):
+    """Un service de notification introuvable ne fait pas échouer la réconciliation."""
+    create, _ = notifs
+    fake_inverter.deaf.add(LOW)
+    rec = Reconciler(hass, {**MOCK_CONF, CONF_NOTIFY: "notify.absent"})
+    assert await rec.async_apply(Targets("battery", 30, 35, 15), 5) is False
+    create.assert_called_once()
