@@ -17,3 +17,5 @@ jobs:
         uses: hacs/action@main
         with:
           category: integration
+          # Pas encore d'icônes : dossier brand/ à ajouter, puis retirer cette ligne
+          ignore: brands
