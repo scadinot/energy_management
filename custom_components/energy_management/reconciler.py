@@ -40,8 +40,12 @@ def same(actual: float | None, wanted: float) -> bool:
 
 def _threshold_writes(actual: Actual, desired: Targets, gap: float) -> list[Write]:
     """Écritures des seuils, dans l'ordre qui préserve haut >= bas + écart."""
-    need_low = actual.low is not None and not same(actual.low, desired.low)
-    need_high = actual.high is not None and not same(actual.high, desired.high)
+    # Un seuil illisible garde sa vraie valeur sur l'onduleur : écrire l'autre
+    # seul pourrait violer haut >= bas + écart. Seule l'abstention le garantit.
+    if actual.low is None or actual.high is None:
+        return []
+    need_low = not same(actual.low, desired.low)
+    need_high = not same(actual.high, desired.high)
     low = Write(CMD_LOW, desired.low)
     high = Write(CMD_HIGH, desired.high)
 

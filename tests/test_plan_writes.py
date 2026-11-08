@@ -113,7 +113,17 @@ def test_charge_en_dernier():
 
 def test_seuil_indisponible_bloque_batterie():
     actual = Actual(MODE_GRID, None, 95, 15)
-    assert plan_writes(actual, RED, GAP) == [Write(CMD_HIGH, 35)]
+    assert plan_writes(actual, RED, GAP) == []
+
+
+def test_seuil_13_indisponible_retour_reseau():
+    actual = Actual(MODE_BATTERY, 30, None, 15)
+    assert plan_writes(actual, NORMAL, GAP) == [Write(CMD_MODE, MODE_GRID)]
+
+
+def test_seuil_indisponible_charge_ecrite():
+    actual = Actual(MODE_GRID, None, 95, 15)
+    assert plan_writes(actual, BOOST, GAP) == [Write(CMD_CHARGE, 20)]
 
 
 def test_mode_indisponible():
