@@ -208,19 +208,28 @@ class EnergyManagementPanel extends HTMLElement {
       input.checked = this._text(id) === 'on';
       return;
     }
-    this._hass.callService("switch", on ? "turn_on" : "turn_off", { entity_id: id });
+    Promise.resolve(this._hass.callService("switch", on ? "turn_on" : "turn_off", { entity_id: id }))
+      .catch((err) => {
+        // Appel refusé : la case reprend l'état réel, l'en-tête sera redessiné
+        console.error('Energy Management : Pilotage non modifié', err);
+        input.checked = this._text(id) === 'on';
+        delete this._last.header;
+        this._update();
+      });
   }
 
   _tempoCell(id) {
     const value = this._text(id, '');
-    if (!this._known(id)) return '<span class="tempo muted">—</span>';
-    const col = TEMPO_COLORS[value] || { bg: 'var(--secondary-background-color)', fg: 'var(--primary-text-color)' };
+    const col = TEMPO_COLORS[value];
+    // « inconnu », unknown, unavailable ou absente : couleur inconnue, neutre
+    if (!col) return '<span class="tempo muted">Inconnue</span>';
     return `<span class="tempo" style="background:${col.bg};color:${col.fg}">${this._esc(value)}</span>`;
   }
 
   _vigilance() {
     const id = this._cfg.vigilance;
-    if (!this._state(id)) return '<span class="badge">Non configurée</span>';
+    // Comme le calcul : vigilance illisible = inconnue (réserve sous vigilance)
+    if (!this._known(id)) return '<span class="badge warn">Inconnue</span>';
     const attrs = this._attrs(id);
     const phenomena = Array.isArray(this._cfg.phenomena) ? this._cfg.phenomena : [];
     const levels = Array.isArray(this._cfg.active_levels) ? this._cfg.active_levels : ACTIVE_LEVELS;
@@ -232,11 +241,11 @@ class EnergyManagementPanel extends HTMLElement {
 
   _renderDays() {
     const c = this._cfg;
-    const offPeak = this._state(c.off_peak)
-      ? (this._text(c.off_peak) === 'on'
-        ? '<span class="badge ok">Heures creuses</span>'
-        : '<span class="badge">Heures pleines</span>')
-      : '<span class="badge muted">Non configurées</span>';
+    // Comme le calcul : seuls on / off sont lus, le reste est inconnu
+    const offPeakState = this._text(c.off_peak);
+    let offPeak = '<span class="badge warn">Inconnues</span>';
+    if (offPeakState === 'on') offPeak = '<span class="badge ok">Heures creuses</span>';
+    else if (offPeakState === 'off') offPeak = '<span class="badge">Heures pleines</span>';
     this._set('days', `
       <h2>Aujourd'hui / demain</h2>
       <div class="grid2">
