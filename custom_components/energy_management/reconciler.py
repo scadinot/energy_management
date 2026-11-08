@@ -203,15 +203,22 @@ class Reconciler:
             for command in sorted(self._failed - set(gaps)):
                 self._clear_failure(command)
             for write in plan_writes(actual, desired, gap):
-                if not should_continue():
-                    return False
-                if not await self._write(write):
+                # False = échec ou arrêt demandé : la séquence s'arrête.
+                if not await self._write(write, should_continue):
                     return False
             return True
 
-    async def _write(self, write: Write) -> bool:
-        """Écrit une commande avec ses essais ; gère les notifications."""
+    async def _write(
+        self, write: Write, should_continue: Callable[[], bool]
+    ) -> bool:
+        """Écrit une commande avec ses essais ; gère les notifications.
+
+        Renvoie False sur échec (notifié) ou sur arrêt demandé (non notifié) :
+        `should_continue` est contrôlé avant chaque essai.
+        """
         for attempt in range(1, WRITE_ATTEMPTS + 1):
+            if not should_continue():
+                return False
             if await self._try_write(write):
                 self._clear_failure(write.command)
                 return True

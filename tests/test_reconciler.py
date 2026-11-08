@@ -179,3 +179,17 @@ def test_read_actual(hass, base_states):
     assert read_actual(hass, MOCK_CONF) == Actual("SOL (Solar First)", 50.0, 95.0, None)
     hass.states.async_set(MODE_SELECT, "unknown")
     assert read_actual(hass, MOCK_CONF).mode is None
+
+
+async def test_should_continue_entre_les_essais(hass, base_states, fake_inverter, notifs):
+    create, _ = notifs
+    fake_inverter.deaf.add(LOW)
+    rec = Reconciler(hass, MOCK_CONF)
+    result = await rec.async_apply(
+        Targets("battery", 30, 35, 15),
+        5,
+        should_continue=lambda: len(fake_inverter.calls) < 1,
+    )
+    assert result is False
+    assert fake_inverter.calls == [(LOW, 30)]
+    create.assert_not_called()
