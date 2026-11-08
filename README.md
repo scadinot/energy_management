@@ -95,7 +95,7 @@ Une seule instance est possible (`single_config_entry`).
 
 ### Désinstallation
 
-Avant de supprimer l'intégration, couper le Pilotage et attendre la remise aux valeurs normales (Écart éteint) : une fois l'intégration supprimée, plus rien ne remet les onduleurs en mode réseau.
+Avant de supprimer l'intégration, couper le Pilotage et attendre la fin de la remise aux valeurs normales : la pastille « Remise en attente » a disparu du panneau (attribut `remise_en_attente` du Pilotage à faux). L'entité Écart ne convient pas : elle compare l'état réel à la décision, pas aux valeurs normales. Une fois l'intégration supprimée, plus rien ne remet les onduleurs en mode réseau.
 
 ## Configuration
 
@@ -134,7 +134,7 @@ Notes :
 
 | Entité | Type | Rôle |
 |---|---|---|
-| Pilotage | `switch` | Verrou général. Coupé par défaut, état conservé au redémarrage. |
+| Pilotage | `switch` | Verrou général. Coupé par défaut, état conservé au redémarrage. Attributs : `remise_en_attente` (remise aux valeurs normales pas terminée) et `commandes_a_remettre` (commandes encore à remettre). |
 | Mode voulu | `sensor` (enum) | Réseau, batterie (jour rouge), charge renforcée, coupure réseau |
 | Raison | `sensor` | Texte, par exemple « Jour rouge, réserve 50 % (vigilance vent orange) » |
 | Réserve active | `sensor` (%) | 30 ou 50 selon la vigilance |
@@ -148,7 +148,7 @@ Entrée **Energy Management** dans la barre latérale (icône `mdi:home-battery`
 
 | Bloc | Contenu |
 |---|---|
-| En-tête | Interrupteur Pilotage, avec confirmation au basculement ; indicateur Écart |
+| En-tête | Interrupteur Pilotage, avec confirmation au basculement ; indicateur Écart ; pastille « Remise en attente » suivie des commandes encore à remettre, tant que la remise aux valeurs normales n'est pas terminée |
 | Aujourd'hui / demain | Couleurs Tempo, heures creuses, vigilance du jour |
 | Batterie | SOC, réserve active, présence du réseau |
 | Décision | Mode voulu et raison |
@@ -166,11 +166,14 @@ Pilotage coupé, l'intégration calcule et affiche, mais n'écrit rien. Pour ré
 
 - elle a lieu **une seule fois**, uniquement quand on passe le Pilotage de actif à coupé ; jamais à l'installation, jamais à un redémarrage avec le Pilotage déjà coupé ;
 - demandée pendant une coupure réseau, elle **attend le retour du réseau** ;
-- elle n'est **terminée que lorsque le mode et les trois valeurs sont relus à leurs valeurs normales** : une commande indisponible (donc non écrite) ou un échec la laisse en attente, et elle est retentée à chaque vérification ;
+- elle est **suivie commande par commande** : chaque commande relue à sa valeur normale sort de la remise, et seules les commandes restantes sont encore écrites ; la remise est **terminée quand les quatre commandes en sont sorties** ;
+- une commande **déjà remise puis réglée à la main n'est plus réécrite** par la remise, même si une autre commande reste en attente ;
+- une commande indisponible (donc non écrite) ou en échec **reste en attente** sans faire réécrire les commandes déjà remises ; elle est retentée à chaque vérification, et le panneau la nomme (pastille « Remise en attente ») ;
+- si un seul des deux seuils reste à remettre et que l'écrire violerait seuil 13 ≥ seuil 12 + écart (l'autre seuil ayant été réglé à la main), il n'est pas écrit et reste en attente ;
 - une remise pas encore faite **survit à un redémarrage de Home Assistant ou à un rechargement des options** (conservée dans les données de restauration de l'interrupteur) ;
 - si le Pilotage est réactivé entre-temps, la remise est annulée.
 
-Avant de supprimer l'intégration, couper le Pilotage et attendre la remise aux valeurs normales (Écart éteint) : une fois l'intégration supprimée, plus rien ne remet les onduleurs en mode réseau.
+Avant de supprimer l'intégration, couper le Pilotage et attendre la fin de la remise aux valeurs normales : la pastille « Remise en attente » a disparu du panneau (attribut `remise_en_attente` du Pilotage à faux). L'entité Écart ne convient pas : elle compare l'état réel à la décision, pas aux valeurs normales. Une fois l'intégration supprimée, plus rien ne remet les onduleurs en mode réseau.
 
 ### Démarrage de Home Assistant
 
