@@ -602,3 +602,24 @@ async def test_dechargement(hass, base_states, fake_inverter, mock_entry):
     assert fake_inverter.calls == []
     assert manager.gaps == []
     assert manager.decision.state == "reseau"
+
+
+async def test_echec_du_panneau_arrete_le_manager(
+    hass, base_states, fake_inverter, mock_entry
+):
+    """Une erreur après le démarrage du manager ne le laisse pas tourner."""
+    with patch(
+        "custom_components.energy_management.async_register_panel",
+        side_effect=RuntimeError("panneau"),
+    ):
+        mock_entry.add_to_hass(hass)
+        assert not await hass.config_entries.async_setup(mock_entry.entry_id)
+        await hass.async_block_till_done()
+    assert mock_entry.state is ConfigEntryState.SETUP_ERROR
+    manager = mock_entry.runtime_data
+    assert manager._running is False
+    manager.pilotage = True
+    _set(hass, COLOR_TODAY, "Rouge")
+    await hass.async_block_till_done()
+    await _tick(hass)
+    assert fake_inverter.calls == []

@@ -229,3 +229,70 @@ async def test_reserve_vigilance_plus_ecart_hors_bornes(hass, base_states):
     _bornes(hass, (0, 100), (10, 100))
     conf = {**MOCK_CONF, CONF_RESERVE_VIGILANCE: 98, CONF_GAP: 5}
     assert validate_values(hass, conf) == {CONF_GAP: "out_of_bounds"}
+
+
+async def test_reserve_plus_ecart_sans_bornes_du_seuil_13(hass, base_states):
+    """Bornes du seuil 13 inconnues : réserve + écart reste plafonné à 100."""
+    _bornes(hass, (0, 100), (10, 100))
+    hass.states.async_set(HIGH, "95")  # plus d'attributs min / max
+    conf = {**MOCK_CONF, CONF_RESERVE_VIGILANCE: 98, CONF_GAP: 5}
+    assert validate_values(hass, conf) == {CONF_GAP: "out_of_bounds"}
+    conf = {**MOCK_CONF, CONF_RESERVE_VIGILANCE: 95, CONF_GAP: 5}
+    assert validate_values(hass, conf) == {}
+
+
+async def _options_jusqu_aux_valeurs(hass, entry):
+    """Options jusqu'au formulaire de l'étape 3."""
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], _part(MOCK_CONF, STEP_1)
+    )
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], _part(MOCK_CONF, STEP_2)
+    )
+    assert result["step_id"] == "values"
+    return result
+
+
+async def test_options_notify_conserve_sans_service(hass, base_states):
+    """Aucun service notify : le champ n'est pas montré, la cible enregistrée reste."""
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={**MOCK_CONF, CONF_NOTIFY: "notify.telephone"},
+        unique_id=DOMAIN,
+        version=1,
+    )
+    entry.add_to_hass(hass)
+    result = await _options_jusqu_aux_valeurs(hass, entry)
+    assert CONF_NOTIFY not in {str(key) for key in result["data_schema"].schema}
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], _part(MOCK_CONF, STEP_3)
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_NOTIFY] == "notify.telephone"
+
+
+async def test_options_notify_vide_retire(hass, base_states):
+    """Champ notify montré et laissé vide : la cible est retirée."""
+    from pytest_homeassistant_custom_component.common import (
+        MockConfigEntry,
+        async_mock_service,
+    )
+
+    async_mock_service(hass, "notify", "telephone")
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={**MOCK_CONF, CONF_NOTIFY: "notify.telephone"},
+        unique_id=DOMAIN,
+        version=1,
+    )
+    entry.add_to_hass(hass)
+    result = await _options_jusqu_aux_valeurs(hass, entry)
+    assert CONF_NOTIFY in {str(key) for key in result["data_schema"].schema}
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], _part(MOCK_CONF, STEP_3)
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert CONF_NOTIFY not in entry.options

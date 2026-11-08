@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -144,14 +145,15 @@ LABELS = {
 
 
 def _number(hass: HomeAssistant, entity_id: str) -> float | None:
-    """Valeur numérique d'une entité, None si absente ou illisible."""
+    """Valeur numérique finie d'une entité, None si absente ou illisible."""
     state = hass.states.get(entity_id)
     if state is None:
         return None
     try:
-        return float(state.state)
+        number = float(state.state)
     except ValueError:
         return None
+    return number if math.isfinite(number) else None
 
 
 def read_actual(hass: HomeAssistant, conf: Mapping[str, Any]) -> Actual:
@@ -245,15 +247,19 @@ class Reconciler:
         await self._notify_failure(write)
         return False
 
+    def _option(self, mode: str | float) -> str:
+        """Option du select pour MODE_BATTERY ou MODE_GRID."""
+        return self._conf[
+            CONF_OPTION_BATTERY if mode == MODE_BATTERY else CONF_OPTION_GRID
+        ]
+
     def _call(
         self, write: Write
     ) -> tuple[str, str, dict[str, Any], Callable[[str], bool]]:
         """Service, données et test de relecture d'une écriture."""
         entity_id = self._conf[_ENTITY_KEY[write.command]]
         if write.command == CMD_MODE:
-            option = self._conf[
-                CONF_OPTION_BATTERY if write.value == MODE_BATTERY else CONF_OPTION_GRID
-            ]
+            option = self._option(write.value)
             return (
                 "select",
                 "select_option",
@@ -314,12 +320,14 @@ class Reconciler:
             unsub()
 
     def _clear_failure(self, command: str) -> None:
-        """Retire la notification d'une commande qui n'est plus en échec."""
-        if command in self._failed:
-            self._failed.discard(command)
-            persistent_notification.async_dismiss(
-                self._hass, f"{DOMAIN}_echec_{command}"
-            )
+        """Retire la notification d'une commande qui n'est plus en échec.
+
+        Toujours appelé à la relecture réussie, même si la commande n'est pas
+        dans `_failed` : la notification peut venir d'avant un rechargement
+        (async_dismiss ne fait rien si elle n'existe pas).
+        """
+        self._failed.discard(command)
+        persistent_notification.async_dismiss(self._hass, f"{DOMAIN}_echec_{command}")
 
     async def _notify_failure(self, write: Write) -> None:
         """Notifie l'échec, une seule fois par épisode et par commande."""
@@ -327,9 +335,13 @@ class Reconciler:
             return
         self._failed.add(write.command)
         entity_id = self._conf[_ENTITY_KEY[write.command]]
+        # Pour le mode : l'option du select (ex. « SBU (...) »), pas grid / battery
+        value = (
+            self._option(write.value) if write.command == CMD_MODE else write.value
+        )
         title = "Energy Management"
         message = (
-            f"{LABELS[write.command]} : la valeur {write.value} voulue sur "
+            f"{LABELS[write.command]} : la valeur {value} voulue sur "
             f"{entity_id} n'a pas été relue après {WRITE_ATTEMPTS} essais."
         )
         persistent_notification.async_create(

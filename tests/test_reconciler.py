@@ -118,8 +118,12 @@ async def test_succes_efface_la_notification(hass, base_states, fake_inverter, n
     assert await rec.async_apply(Targets("battery", 30, 35, 15), 5) is False
     fake_inverter.deaf.clear()
     assert await rec.async_apply(Targets("battery", 30, 35, 15), 5) is True
-    dismiss.assert_called_once()
-    assert dismiss.call_args.args[1] == "energy_management_echec_low"
+    # Chaque relecture réussie efface la notification de sa commande
+    assert [call.args[1] for call in dismiss.call_args_list] == [
+        "energy_management_echec_low",
+        "energy_management_echec_high",
+        "energy_management_echec_mode",
+    ]
 
 
 async def test_echec_efface_si_regle_a_la_main(hass, base_states, fake_inverter, notifs):
@@ -264,3 +268,37 @@ async def test_service_notify_introuvable(hass, base_states, fake_inverter, noti
     rec = Reconciler(hass, {**MOCK_CONF, CONF_NOTIFY: "notify.absent"})
     assert await rec.async_apply(Targets("battery", 30, 35, 15), 5) is False
     create.assert_called_once()
+
+
+def test_read_actual_nombre_non_fini(hass, base_states):
+    """nan et inf ne sont pas des valeurs relues."""
+    hass.states.async_set(LOW, "nan")
+    hass.states.async_set(HIGH, "inf")
+    hass.states.async_set(CHARGE, "-inf")
+    assert read_actual(hass, MOCK_CONF) == Actual("grid", None, None, None)
+
+
+async def test_notification_du_mode_avec_l_option(
+    hass, base_states, fake_inverter, notifs
+):
+    """L'échec du mode cite l'option du select, pas grid / battery."""
+    create, _ = notifs
+    _set_state(hass, SBU, 50, 95)
+    fake_inverter.deaf.add(MODE_SELECT)
+    rec = Reconciler(hass, MOCK_CONF)
+    assert await rec.async_apply(Targets("grid", 50, 95, 15), 5) is False
+    message = create.call_args.args[1]
+    assert UTI in message
+    assert "grid" not in message
+
+
+async def test_succes_efface_une_notification_d_avant_rechargement(
+    hass, base_states, fake_inverter, notifs
+):
+    """Nouveau Reconciler (rien en échec chez lui) : le succès efface quand même."""
+    _, dismiss = notifs
+    hass.states.async_set(LOW, "40", dict(hass.states.get(LOW).attributes))
+    rec = Reconciler(hass, MOCK_CONF)
+    assert await rec.async_apply(Targets("grid", 50, 95, 15), 5) is True
+    dismiss.assert_called_once()
+    assert dismiss.call_args.args[1] == "energy_management_echec_low"

@@ -222,9 +222,10 @@ def validate_values(hass: HomeAssistant, conf: Mapping[str, Any]) -> dict[str, s
     for key in (CONF_RESERVE_NORMAL, CONF_RESERVE_VIGILANCE, CONF_LOW_NORMAL):
         check(key, conf[key], low_bounds)
     for key in (CONF_RESERVE_NORMAL, CONF_RESERVE_VIGILANCE):
-        # Seuil 13 : réserve plus écart (une réserve déjà fautive porte l'erreur seule)
+        # Seuil 13 : réserve plus écart (une réserve déjà fautive porte l'erreur
+        # seule) ; bornes inconnues : un pourcentage, donc au plus 100
         if key not in bound_errors:
-            check(CONF_GAP, conf[key] + gap, high_bounds)
+            check(CONF_GAP, conf[key] + gap, high_bounds or (0, 100))
     check(CONF_HIGH_NORMAL, conf[CONF_HIGH_NORMAL], high_bounds)
     check(CONF_CHARGE_NORMAL, conf[CONF_CHARGE_NORMAL], charge_bounds)
     check(CONF_CHARGE_BOOST, conf[CONF_CHARGE_BOOST], charge_bounds)
@@ -245,6 +246,8 @@ class _StepsMixin:
 
     hass: HomeAssistant
     _data: dict[str, Any]
+    # Le champ notify figurait-il dans le dernier formulaire de l'étape 3 ?
+    _notify_shown = False
 
     def _merge(self, user_input: Mapping[str, Any], keys: tuple[str, ...]) -> None:
         """Ajoute la saisie ; un champ facultatif vide disparaît de la configuration."""
@@ -274,13 +277,17 @@ class _StepsMixin:
         """Étape 3 : valeurs et réglages, avec contrôle de saisie."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            self._merge(user_input, (CONF_NOTIFY,))
+            # Champ notify absent du formulaire (aucun service) : la cible
+            # enregistrée est conservée, pas retirée comme un champ vidé.
+            self._merge(user_input, (CONF_NOTIFY,) if self._notify_shown else ())
             errors = validate_values(self.hass, self._data)
             if not errors:
                 return await self._finish()
+        schema = values_schema(self.hass, self._data)
+        self._notify_shown = CONF_NOTIFY in schema.schema
         return self.async_show_form(  # type: ignore[attr-defined]
             step_id="values",
-            data_schema=values_schema(self.hass, self._data),
+            data_schema=schema,
             errors=errors,
         )
 
