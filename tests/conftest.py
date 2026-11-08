@@ -5,7 +5,7 @@ from datetime import timedelta
 from typing import Any
 
 import pytest
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers.event import async_call_later
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -60,7 +60,10 @@ def base_states(hass: HomeAssistant) -> None:
             "Orages": "Vert",
             "Inondation": "Vert",
             "Neige-verglas": "Vert",
-            "Canicule": "Vert",
+            "Vagues-submersion": "Vert",
+            "attribution": "Données Météo-France",
+            "icon": "mdi:weather-cloudy-alert",
+            "friendly_name": "76 Weather alert",
             "Grand-froid": "Vert",
         },
     )
@@ -102,9 +105,12 @@ def fake_inverter(hass: HomeAssistant) -> FakeInverter:
             return
         delay = inverter.delay.get(entity_id)
         if delay:
-            async_call_later(
-                hass, timedelta(seconds=delay), lambda _now: _apply(entity_id, stored)
-            )
+
+            @callback
+            def _later(_now) -> None:
+                _apply(entity_id, stored)
+
+            async_call_later(hass, timedelta(seconds=delay), _later)
         else:
             _apply(entity_id, stored)
 
