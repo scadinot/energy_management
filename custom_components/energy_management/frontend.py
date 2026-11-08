@@ -14,7 +14,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN, conf_of
+from .const import ACTIVE_LEVELS, CONF_PHENOMENA, DEFAULT_PHENOMENA, DOMAIN, conf_of
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,6 +54,9 @@ async def async_register_panel(hass: HomeAssistant, entry: ConfigEntry) -> None:
     # Les identifiants dépendent de la langue : on les lit dans le registre.
     registry = er.async_get(hass)
     config: dict = dict(conf_of(entry))
+    # Même repli que le calcul (inputs.py) : sans liste, les phénomènes par défaut
+    config[CONF_PHENOMENA] = config.get(CONF_PHENOMENA) or list(DEFAULT_PHENOMENA)
+    config["active_levels"] = list(ACTIVE_LEVELS)
     for key, domain in _ENTITIES.items():
         config[f"{key}_entity"] = registry.async_get_entity_id(
             domain, DOMAIN, f"{entry.entry_id}_{key}"

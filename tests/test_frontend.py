@@ -74,3 +74,26 @@ def test_js_un_seul_service():
     appels = re.findall(r"callService\(([^)]*)\)", JS.read_text(encoding="utf-8"))
     assert len(appels) == 1
     assert appels[0].lstrip().startswith('"switch"')
+
+
+async def test_panneau_phenomenes_par_defaut(hass, base_states):
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.energy_management.const import (
+        ACTIVE_LEVELS,
+        CONF_PHENOMENA,
+        DEFAULT_PHENOMENA,
+    )
+
+    from .const import MOCK_CONF
+
+    conf = {k: v for k, v in MOCK_CONF.items() if k != CONF_PHENOMENA}
+    entry = MockConfigEntry(domain=DOMAIN, data=conf, unique_id=DOMAIN, version=1)
+    with patch(
+        "custom_components.energy_management.frontend.panel_custom.async_register_panel",
+        new=AsyncMock(),
+    ) as register:
+        await _setup(hass, entry)
+    config = register.call_args.kwargs["config"]
+    assert config[CONF_PHENOMENA] == DEFAULT_PHENOMENA
+    assert config["active_levels"] == list(ACTIVE_LEVELS)

@@ -19,6 +19,7 @@ const MODE_LABELS = {
   coupure_reseau: 'Coupure réseau',
 };
 
+// Repli si la conf du panneau ne fournit pas active_levels
 const ACTIVE_LEVELS = ['Orange', 'Rouge'];
 
 // Clés de la conf pour lesquelles le panneau lit l'entité de commande
@@ -26,7 +27,7 @@ const COMMANDS = [
   { label: 'Mode de sortie', key: 'mode_select', kind: 'mode' },
   { label: 'Seuil 12', key: 'low_threshold', kind: 'number', want: 'seuil_12', unit: '%' },
   { label: 'Seuil 13', key: 'high_threshold', kind: 'number', want: 'seuil_13', unit: '%' },
-  { label: 'Courant de charge', key: 'charge_current', kind: 'number', want: 'charge', unit: 'A' },
+  { label: 'Charge réseau', key: 'charge_current', kind: 'number', want: 'charge', unit: 'A' },
 ];
 
 class EnergyManagementPanel extends HTMLElement {
@@ -36,13 +37,14 @@ class EnergyManagementPanel extends HTMLElement {
     this._hass = null;
     this._rendered = false;
     this._cfg = {};
+    this._last = {};
     this._narrow = false;
   }
 
   set hass(hass) {
     this._hass = hass;
     if (!this._rendered) {
-      this._cfg = (this._panel && this._panel.config) || {};
+      this._cfg = this._panelConfig();
       this._renderShell();
       this._rendered = true;
     }
@@ -50,7 +52,12 @@ class EnergyManagementPanel extends HTMLElement {
   }
 
   get hass() { return this._hass; }
-  set panel(v) { this._panel = v; }
+  set panel(v) {
+    this._panel = v;
+    this._cfg = this._panelConfig();
+    if (this._rendered) { this._last = {}; this._update(); }
+  }
+  _panelConfig() { return (this._panel && this._panel.config) || {}; }
   get panel() { return this._panel; }
   set narrow(v) { this._narrow = v; this.toggleAttribute('narrow', !!v); }
   set route(v) { this._route = v; }
@@ -97,7 +104,7 @@ class EnergyManagementPanel extends HTMLElement {
     if (typeof this._hass.formatEntityState === 'function') {
       try { return this._hass.formatEntityState(s); } catch (e) { /* repli ci-dessous */ }
     }
-    return s.state;
+    return MODE_LABELS[s.state] || s.state;
   }
 
   /* ----------------------------------------------------------------- rendu */
@@ -164,7 +171,8 @@ class EnergyManagementPanel extends HTMLElement {
 
   _set(id, html) {
     const el = this._root.getElementById(id);
-    if (el && el.innerHTML !== html) el.innerHTML = html;
+    // Comparaison avec le dernier html écrit : innerHTML est resérialisé par le navigateur
+    if (el && this._last[id] !== html) { this._last[id] = html; el.innerHTML = html; }
   }
 
   _renderHeader() {
@@ -215,7 +223,8 @@ class EnergyManagementPanel extends HTMLElement {
     if (!this._state(id)) return '<span class="badge">Non configurée</span>';
     const attrs = this._attrs(id);
     const phenomena = Array.isArray(this._cfg.phenomena) ? this._cfg.phenomena : [];
-    const active = phenomena.filter((p) => ACTIVE_LEVELS.includes(attrs[p]));
+    const levels = Array.isArray(this._cfg.active_levels) ? this._cfg.active_levels : ACTIVE_LEVELS;
+    const active = phenomena.filter((p) => levels.includes(attrs[p]));
     if (!active.length) return '<span class="badge ok">Aucune vigilance</span>';
     const red = active.some((p) => attrs[p] === 'Rouge');
     return `<span class="badge ${red ? 'err' : 'warn'}">${this._esc(active.map((p) => `${p} (${attrs[p]})`).join(', '))}</span>`;
