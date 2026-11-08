@@ -135,7 +135,7 @@ _ENTITY_KEY = {
     CMD_HIGH: CONF_HIGH,
     CMD_CHARGE: CONF_CHARGE,
 }
-_LABELS = {
+LABELS = {
     CMD_MODE: "Mode de sortie",
     CMD_LOW: "Seuil 12",
     CMD_HIGH: "Seuil 13",
@@ -310,7 +310,7 @@ class Reconciler:
         entity_id = self._conf[_ENTITY_KEY[write.command]]
         title = "Energy Management"
         message = (
-            f"{_LABELS[write.command]} : la valeur {write.value} voulue sur "
+            f"{LABELS[write.command]} : la valeur {write.value} voulue sur "
             f"{entity_id} n'a pas été relue après {WRITE_ATTEMPTS} essais."
         )
         persistent_notification.async_create(
