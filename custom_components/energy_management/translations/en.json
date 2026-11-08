@@ -1,0 +1,138 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Sources",
+        "data": {
+          "color_today": "Tempo colour today",
+          "color_tomorrow": "Tempo colour tomorrow",
+          "off_peak": "Off-peak hours",
+          "vigilance": "Weather alert",
+          "phenomena": "Monitored phenomena",
+          "soc": "Battery SOC",
+          "ev_power": "EV charger power",
+          "grid_presence": "Grid presence (optional)"
+        },
+        "description": "Choose the entities the integration reads. Control stays off until the N-PE bond has been measured."
+      },
+      "commands": {
+        "title": "Inverter commands",
+        "data": {
+          "mode_select": "Output mode",
+          "low_threshold": "Threshold 12 (back to grid)",
+          "high_threshold": "Threshold 13 (back to battery)",
+          "charge_current": "Grid charge current"
+        },
+        "description": "Choose the output mode and the numbers the integration controls."
+      },
+      "values": {
+        "title": "Values and settings",
+        "data": {
+          "option_grid": "\"Grid\" value",
+          "option_battery": "\"Battery\" value",
+          "reserve_normal": "Normal reserve",
+          "reserve_vigilance": "Reserve under alert",
+          "gap": "Gap 12 → 13",
+          "low_normal": "Normal threshold 12",
+          "high_normal": "Normal threshold 13",
+          "charge_normal": "Normal charge",
+          "charge_boost": "Boosted charge",
+          "ev_threshold": "\"EV charging\" threshold",
+          "notify": "Notification service (optional)"
+        },
+        "description": "The \"grid\" and \"battery\" values come from the options of the chosen output mode."
+      }
+    },
+    "error": {
+      "reserve_order": "The reserve under alert must be greater than or equal to the normal reserve.",
+      "gap_order": "Normal threshold 13 must be greater than or equal to normal threshold 12 plus the gap.",
+      "same_option": "The \"grid\" and \"battery\" values must be different.",
+      "option_missing": "This value is not among the options of the output mode.",
+      "out_of_bounds": "Value outside the bounds of the chosen entity."
+    },
+    "abort": {
+      "single_instance_allowed": "The integration is already configured: only one instance is allowed."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Sources",
+        "data": {
+          "color_today": "Tempo colour today",
+          "color_tomorrow": "Tempo colour tomorrow",
+          "off_peak": "Off-peak hours",
+          "vigilance": "Weather alert",
+          "phenomena": "Monitored phenomena",
+          "soc": "Battery SOC",
+          "ev_power": "EV charger power",
+          "grid_presence": "Grid presence (optional)"
+        },
+        "description": "Choose the entities the integration reads. Control stays off until the N-PE bond has been measured."
+      },
+      "commands": {
+        "title": "Inverter commands",
+        "data": {
+          "mode_select": "Output mode",
+          "low_threshold": "Threshold 12 (back to grid)",
+          "high_threshold": "Threshold 13 (back to battery)",
+          "charge_current": "Grid charge current"
+        },
+        "description": "Choose the output mode and the numbers the integration controls."
+      },
+      "values": {
+        "title": "Values and settings",
+        "data": {
+          "option_grid": "\"Grid\" value",
+          "option_battery": "\"Battery\" value",
+          "reserve_normal": "Normal reserve",
+          "reserve_vigilance": "Reserve under alert",
+          "gap": "Gap 12 → 13",
+          "low_normal": "Normal threshold 12",
+          "high_normal": "Normal threshold 13",
+          "charge_normal": "Normal charge",
+          "charge_boost": "Boosted charge",
+          "ev_threshold": "\"EV charging\" threshold",
+          "notify": "Notification service (optional)"
+        },
+        "description": "The \"grid\" and \"battery\" values come from the options of the chosen output mode."
+      }
+    },
+    "error": {
+      "reserve_order": "The reserve under alert must be greater than or equal to the normal reserve.",
+      "gap_order": "Normal threshold 13 must be greater than or equal to normal threshold 12 plus the gap.",
+      "same_option": "The \"grid\" and \"battery\" values must be different.",
+      "option_missing": "This value is not among the options of the output mode.",
+      "out_of_bounds": "Value outside the bounds of the chosen entity."
+    }
+  },
+  "entity": {
+    "switch": {
+      "pilotage": {
+        "name": "Control"
+      }
+    },
+    "sensor": {
+      "mode_voulu": {
+        "name": "Wanted mode",
+        "state": {
+          "reseau": "Grid",
+          "batterie": "Battery",
+          "charge_renforcee": "Boosted charge",
+          "coupure_reseau": "Grid outage"
+        }
+      },
+      "raison": {
+        "name": "Reason"
+      },
+      "reserve_active": {
+        "name": "Active reserve"
+      }
+    },
+    "binary_sensor": {
+      "ecart": {
+        "name": "Gap"
+      }
+    }
+  }
+}

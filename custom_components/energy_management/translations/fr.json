@@ -1,0 +1,138 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Sources",
+        "data": {
+          "color_today": "Couleur du jour Tempo",
+          "color_tomorrow": "Couleur du prochain jour",
+          "off_peak": "Heures creuses",
+          "vigilance": "Vigilance météo",
+          "phenomena": "Phénomènes surveillés",
+          "soc": "SOC de la batterie",
+          "ev_power": "Puissance de la borne",
+          "grid_presence": "Présence réseau (facultatif)"
+        },
+        "description": "Choisissez les entités lues par l'extension. Le Pilotage reste coupé tant que la liaison N-PE n'a pas été mesurée."
+      },
+      "commands": {
+        "title": "Commandes de l'onduleur",
+        "data": {
+          "mode_select": "Mode de sortie",
+          "low_threshold": "Seuil 12 (retour au réseau)",
+          "high_threshold": "Seuil 13 (retour sur batterie)",
+          "charge_current": "Charge réseau"
+        },
+        "description": "Choisissez le mode de sortie et les nombres que l'extension pilote."
+      },
+      "values": {
+        "title": "Valeurs et réglages",
+        "data": {
+          "option_grid": "Valeur « réseau »",
+          "option_battery": "Valeur « batterie »",
+          "reserve_normal": "Réserve normale",
+          "reserve_vigilance": "Réserve sous vigilance",
+          "gap": "Écart 12 → 13",
+          "low_normal": "Seuil 12 normal",
+          "high_normal": "Seuil 13 normal",
+          "charge_normal": "Charge normale",
+          "charge_boost": "Charge renforcée",
+          "ev_threshold": "Seuil « borne en charge »",
+          "notify": "Service de notification (facultatif)"
+        },
+        "description": "Les valeurs « réseau » et « batterie » viennent des options du mode de sortie choisi."
+      }
+    },
+    "error": {
+      "reserve_order": "La réserve sous vigilance doit être supérieure ou égale à la réserve normale.",
+      "gap_order": "Le seuil 13 normal doit être supérieur ou égal au seuil 12 normal plus l'écart.",
+      "same_option": "Les valeurs « réseau » et « batterie » doivent être différentes.",
+      "option_missing": "Cette valeur n'est pas dans les options du mode de sortie.",
+      "out_of_bounds": "Valeur hors des bornes de l'entité choisie."
+    },
+    "abort": {
+      "single_instance_allowed": "L'extension est déjà configurée : une seule instance est possible."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Sources",
+        "data": {
+          "color_today": "Couleur du jour Tempo",
+          "color_tomorrow": "Couleur du prochain jour",
+          "off_peak": "Heures creuses",
+          "vigilance": "Vigilance météo",
+          "phenomena": "Phénomènes surveillés",
+          "soc": "SOC de la batterie",
+          "ev_power": "Puissance de la borne",
+          "grid_presence": "Présence réseau (facultatif)"
+        },
+        "description": "Choisissez les entités lues par l'extension. Le Pilotage reste coupé tant que la liaison N-PE n'a pas été mesurée."
+      },
+      "commands": {
+        "title": "Commandes de l'onduleur",
+        "data": {
+          "mode_select": "Mode de sortie",
+          "low_threshold": "Seuil 12 (retour au réseau)",
+          "high_threshold": "Seuil 13 (retour sur batterie)",
+          "charge_current": "Charge réseau"
+        },
+        "description": "Choisissez le mode de sortie et les nombres que l'extension pilote."
+      },
+      "values": {
+        "title": "Valeurs et réglages",
+        "data": {
+          "option_grid": "Valeur « réseau »",
+          "option_battery": "Valeur « batterie »",
+          "reserve_normal": "Réserve normale",
+          "reserve_vigilance": "Réserve sous vigilance",
+          "gap": "Écart 12 → 13",
+          "low_normal": "Seuil 12 normal",
+          "high_normal": "Seuil 13 normal",
+          "charge_normal": "Charge normale",
+          "charge_boost": "Charge renforcée",
+          "ev_threshold": "Seuil « borne en charge »",
+          "notify": "Service de notification (facultatif)"
+        },
+        "description": "Les valeurs « réseau » et « batterie » viennent des options du mode de sortie choisi."
+      }
+    },
+    "error": {
+      "reserve_order": "La réserve sous vigilance doit être supérieure ou égale à la réserve normale.",
+      "gap_order": "Le seuil 13 normal doit être supérieur ou égal au seuil 12 normal plus l'écart.",
+      "same_option": "Les valeurs « réseau » et « batterie » doivent être différentes.",
+      "option_missing": "Cette valeur n'est pas dans les options du mode de sortie.",
+      "out_of_bounds": "Valeur hors des bornes de l'entité choisie."
+    }
+  },
+  "entity": {
+    "switch": {
+      "pilotage": {
+        "name": "Pilotage"
+      }
+    },
+    "sensor": {
+      "mode_voulu": {
+        "name": "Mode voulu",
+        "state": {
+          "reseau": "Réseau",
+          "batterie": "Batterie",
+          "charge_renforcee": "Charge renforcée",
+          "coupure_reseau": "Coupure réseau"
+        }
+      },
+      "raison": {
+        "name": "Raison"
+      },
+      "reserve_active": {
+        "name": "Réserve active"
+      }
+    },
+    "binary_sensor": {
+      "ecart": {
+        "name": "Écart"
+      }
+    }
+  }
+}
