@@ -2,16 +2,31 @@
 from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN  # noqa: F401
+from .manager import EnergyManager
+
+PLATFORMS: list[Platform] = [Platform.SWITCH]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Installe l'entrée (rien à démarrer pour l'instant)."""
+    """Crée le manager, ajoute les entités puis démarre les calculs."""
+    manager = EnergyManager(hass, entry)
+    entry.runtime_data = manager
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    await manager.async_start()
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     return True
+
+
+async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Options modifiées : recharge l'entrée avec la nouvelle configuration."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Décharge l'entrée."""
-    return True
+    """Arrête le manager, puis retire les entités."""
+    await entry.runtime_data.async_stop()
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
