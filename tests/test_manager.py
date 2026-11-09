@@ -418,6 +418,41 @@ async def test_reseau_absent_gel(hass, base_states, fake_inverter, mock_entry):
     assert manager.gaps == ["low"]
 
 
+async def test_capteur_reseau_indisponible_gel(
+    hass, base_states, fake_inverter, mock_entry
+):
+    """Capteur de présence indisponible : aucune écriture, libellé distinct."""
+    manager = await _setup(hass, mock_entry)
+    await _pilotage(hass, mock_entry, True)
+    _set(hass, GRID, "unavailable")
+    _set(hass, COLOR_TODAY, "Rouge")
+    await hass.async_block_till_done()
+    assert manager.decision.state == "capteur_reseau_indisponible"
+    await _tick(hass)
+    assert fake_inverter.calls == []
+    _set(hass, GRID, "on")
+    await hass.async_block_till_done()
+    assert manager.decision.state == "batterie"
+    assert (MODE_SELECT, SBU) in fake_inverter.calls
+
+
+async def test_remise_reportee_capteur_reseau_indisponible(
+    hass, base_states, fake_inverter, mock_entry
+):
+    """Remise demandée capteur indisponible : elle attend le retour du capteur."""
+    manager = await _matin_rouge(hass, mock_entry, fake_inverter)
+    fake_inverter.calls.clear()
+    _set(hass, GRID, "unavailable")
+    await hass.async_block_till_done()
+    await _pilotage(hass, mock_entry, False)
+    await _tick(hass)
+    assert fake_inverter.calls == []
+    assert manager.reset_pending == set(COMMANDS)
+    _set(hass, GRID, "on")
+    await hass.async_block_till_done()
+    assert fake_inverter.calls == [(MODE_SELECT, UTI), (HIGH, 95), (LOW, 50)]
+
+
 async def test_remise_reportee_pendant_coupure(
     hass, base_states, fake_inverter, mock_entry
 ):

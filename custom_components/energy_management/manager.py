@@ -24,7 +24,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.start import async_at_started
 
 from .const import DOMAIN, UPDATE_INTERVAL, conf_of, signal_update
-from .decision import STATE_OUTAGE, Decision, Settings, decide, normal_targets
+from .decision import FROZEN_STATES, Decision, Settings, decide, normal_targets
 from .inputs import grid_present, input_entities, read_inputs, settings_from_conf
 from .reconciler import COMMANDS, Reconciler, compute_gaps, read_actual
 
@@ -135,11 +135,11 @@ class EnergyManager:
         self.decision = decision
         self._update_gaps()
 
-        # Réseau absent : aucune écriture, une remise demandée reste en attente.
+        # Réseau absent ou capteur de présence illisible : aucune écriture, une remise demandée reste en attente.
         # La présence est aussi contrôlée avant chaque essai d'une séquence en
         # cours (gel en coupure, décision 6) ; une remise interrompue reste
         # alors en attente et repart au retour du réseau (décision 2).
-        if decision.state == STATE_OUTAGE:
+        if decision.state in FROZEN_STATES:
             return
         # Démarrage de HA pas terminé : une source peut ne pas être chargée
         # (couleur Tempo inconnue = non rouge) alors que l'onduleur se lit

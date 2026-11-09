@@ -175,18 +175,32 @@ async def test_presence_reseau(hass: HomeAssistant, base_states, etat, attendu) 
     assert read_inputs(hass, MOCK_CONF).grid_present is attendu
 
 
+@pytest.mark.parametrize(
+    "etat,attendu",
+    [("on", False), ("off", False), ("unavailable", True), ("unknown", True)],
+)
+async def test_presence_reseau_illisible(
+    hass: HomeAssistant, base_states, etat, attendu
+) -> None:
+    """« off » est une vraie coupure ; indisponible ou inconnu est un capteur illisible."""
+    hass.states.async_set(GRID, etat)
+    assert read_inputs(hass, MOCK_CONF).grid_unknown is attendu
+
+
 async def test_presence_reseau_entite_absente(
     hass: HomeAssistant, base_states
 ) -> None:
     """Entité configurée mais absente : réseau absent."""
     hass.states.async_remove(GRID)
     assert read_inputs(hass, MOCK_CONF).grid_present is False
+    assert read_inputs(hass, MOCK_CONF).grid_unknown is True
 
 
 async def test_presence_reseau_non_configuree(hass: HomeAssistant, base_states) -> None:
     """Sans entité configurée, le réseau est présent."""
     conf = {k: v for k, v in MOCK_CONF.items() if k != CONF_GRID}
     assert read_inputs(hass, conf).grid_present is True
+    assert read_inputs(hass, conf).grid_unknown is False
 
 
 def test_settings_from_conf() -> None:

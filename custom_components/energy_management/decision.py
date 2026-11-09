@@ -10,7 +10,10 @@ STATE_GRID = "reseau"
 STATE_BATTERY = "batterie"
 STATE_BOOST = "charge_renforcee"
 STATE_OUTAGE = "coupure_reseau"
-STATES = [STATE_GRID, STATE_BATTERY, STATE_BOOST, STATE_OUTAGE]
+STATE_GRID_UNKNOWN = "capteur_reseau_indisponible"
+STATES = [STATE_GRID, STATE_BATTERY, STATE_BOOST, STATE_OUTAGE, STATE_GRID_UNKNOWN]
+# États sans écriture : réseau absent ou présence illisible (même gel)
+FROZEN_STATES = (STATE_OUTAGE, STATE_GRID_UNKNOWN)
 
 
 @dataclass(frozen=True)
@@ -25,6 +28,7 @@ class Inputs:
     vigilance_unknown: bool
     soc: float | None
     ev_charging: bool
+    grid_unknown: bool = False  # capteur de présence illisible ou absent
 
 
 @dataclass(frozen=True)
@@ -91,6 +95,13 @@ def decide(
     normal = normal_targets(settings)
 
     if not inputs.grid_present:
+        if inputs.grid_unknown:
+            return Decision(
+                STATE_GRID_UNKNOWN,
+                "Capteur de présence réseau indisponible, aucune écriture",
+                reserve,
+                previous,
+            )
         return Decision(
             STATE_OUTAGE, "Réseau absent, aucune écriture", reserve, previous
         )

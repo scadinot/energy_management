@@ -68,9 +68,9 @@ const config = {
   option_grid: 'UTI (Utility First)', option_battery: 'SBU (Solar-Battery-Utility)',
 };
 
-function render(hass) {
+function render(hass, cfg = config) {
   const el = new Panel();
-  el.panel = { config };
+  el.panel = { config: cfg };
   el.hass = hass;
   return el;
 }
@@ -111,5 +111,21 @@ result.renamedLater = snapshot(el3);
 // 4. Ni hass.entities utile ni configuration valide : affichage « — ».
 const el4 = render({ states: { ...sources, ...own('sous_sol_energy_management_') }, entities: {} });
 result.lost = snapshot(el4);
+
+// 5. Présence réseau : vraie coupure et capteur illisible affichés différemment.
+const gridCfg = { ...config, grid_presence: 'binary_sensor.grid' };
+const gridCase = (gridState, mode) => {
+  const states = { ...sources, ...own('energy_management_') };
+  if (gridState !== undefined) states['binary_sensor.grid'] = st(gridState);
+  if (mode) states['sensor.energy_management_mode_voulu'] = st(mode, { mode: null });
+  return snapshot(render({ states }, gridCfg));
+};
+result.grid = {
+  on: gridCase('on'),
+  off: gridCase('off', 'coupure_reseau'),
+  unavailable: gridCase('unavailable', 'capteur_reseau_indisponible'),
+  missing: gridCase(undefined, 'capteur_reseau_indisponible'),
+  notConfigured: snapshot(render({ states: { ...sources, ...own('energy_management_') } })),
+};
 
 process.stdout.write(JSON.stringify(result));

@@ -67,6 +67,20 @@ def test_renommage_apres_le_premier_rendu(rendu):
     assert "Pilotage actif" in r["header"]
 
 
+def test_presence_reseau_coupure_et_capteur_distincts(rendu):
+    """Vraie coupure, capteur illisible ou absent, non configuré : quatre libellés."""
+    g = rendu["grid"]
+    assert "Présent" in g["on"]["battery"]
+    assert "Absent" in g["off"]["battery"]
+    assert "Coupure réseau" in g["off"]["decision"]
+    for cas in ("unavailable", "missing"):
+        assert "Capteur indisponible" in g[cas]["battery"]
+        assert "Absent" not in g[cas]["battery"]
+        assert "Non configurée" not in g[cas]["battery"]
+        assert "Capteur réseau indisponible" in g[cas]["decision"]
+    assert "Non configurée" in g["notConfigured"]["battery"]
+
+
 def test_entites_introuvables(rendu):
     """Rien dans le registre ni dans la configuration : affichage « — »."""
     r = rendu["lost"]

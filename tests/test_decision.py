@@ -125,6 +125,25 @@ def test_coupure_garde_cibles_precedentes():
     assert d.reason == "Réseau absent, aucune écriture"
 
 
+def test_capteur_reseau_indisponible_garde_cibles():
+    """Présence réseau illisible : même gel qu'une coupure, libellé distinct."""
+    previous = Targets("battery", 30, 35, 15)
+    d = decide(
+        make_inputs(grid_present=False, grid_unknown=True, today_red=True),
+        SETTINGS,
+        previous,
+    )
+    assert d.state == "capteur_reseau_indisponible"
+    assert d.targets is previous
+    assert d.reason == "Capteur de présence réseau indisponible, aucune écriture"
+
+
+def test_gel_reseau_regroupe_les_deux_etats():
+    from custom_components.energy_management.decision import FROZEN_STATES
+
+    assert set(FROZEN_STATES) == {"coupure_reseau", "capteur_reseau_indisponible"}
+
+
 def test_coupure_sans_precedent():
     d = decide(make_inputs(grid_present=False), SETTINGS)
     assert d.state == "coupure_reseau"

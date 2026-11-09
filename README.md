@@ -127,7 +127,7 @@ Notes :
 
 - Les valeurs « réseau » et « batterie » se choisissent à l'étape 3, car leurs choix dépendent du `select` retenu à l'étape 2.
 - **Service de notification** : dans les options, s'il n'existe plus aucun service `notify` au moment de les modifier, le champ n'est pas proposé et la cible déjà enregistrée est conservée.
-- **Présence réseau** : facultative. Non configurée, le réseau est supposé présent. Configurée, seul l'état `on` compte comme présent (`off`, `unknown` et `unavailable` valent absent).
+- **Présence réseau** : facultative. Non configurée, le réseau est supposé présent. Configurée, seul l'état `on` compte comme présent. `off` est une coupure réseau ; un capteur absent, `unknown` ou `unavailable` est signalé à part (« Capteur réseau indisponible ») et traité de la même façon : aucune écriture.
 - Contrôles de saisie : réserve sous vigilance ≥ réserve normale ; seuil 13 normal ≥ seuil 12 normal + écart ; valeurs dans les bornes des entités `number` choisies ; valeurs « réseau » et « batterie » présentes dans les options du `select` et différentes entre elles.
 
 ## Entités créées
@@ -135,7 +135,7 @@ Notes :
 | Entité | Type | Rôle |
 |---|---|---|
 | Pilotage | `switch` | Verrou général. Coupé par défaut, état conservé au redémarrage. Attributs : `remise_en_attente` (remise aux valeurs normales pas terminée) et `commandes_a_remettre` (commandes encore à remettre). |
-| Mode voulu | `sensor` (enum) | Réseau, batterie (jour rouge), charge renforcée, coupure réseau |
+| Mode voulu | `sensor` (enum) | Réseau, batterie (jour rouge), charge renforcée, coupure réseau, capteur réseau indisponible |
 | Raison | `sensor` | Texte, par exemple « Jour rouge, réserve 50 % (vigilance vent orange) » |
 | Réserve active | `sensor` (%) | 30 ou 50 selon la vigilance |
 | Écart | `binary_sensor` | Allumé si l'état réel diffère de l'état voulu ; attributs : commandes en écart. Pilotage coupé, il montre ce que l'intégration ferait. |
@@ -165,7 +165,7 @@ Pilotage coupé, l'intégration calcule et affiche, mais n'écrit rien. Pour ré
 **Remise aux valeurs normales** (mode réseau, seuils normaux, charge normale) :
 
 - elle a lieu **une seule fois**, uniquement quand on passe le Pilotage de actif à coupé ; jamais à l'installation, jamais à un redémarrage avec le Pilotage déjà coupé ;
-- demandée pendant une coupure réseau, elle **attend le retour du réseau** ;
+- demandée pendant une coupure réseau ou capteur de présence indisponible, elle **attend le retour du réseau** ;
 - elle est **suivie commande par commande** : chaque commande relue à sa valeur normale sort de la remise, et seules les commandes restantes sont encore écrites ; la remise est **terminée quand les quatre commandes en sont sorties** ;
 - une commande **déjà remise puis réglée à la main n'est plus réécrite** par la remise, même si une autre commande reste en attente ;
 - une commande indisponible (donc non écrite) ou en échec **reste en attente** sans faire réécrire les commandes déjà remises ; elle est retentée à chaque vérification, et le panneau la nomme (pastille « Remise en attente ») ;

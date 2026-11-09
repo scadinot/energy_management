@@ -127,7 +127,8 @@
           "reseau": "Grid",
           "batterie": "Battery",
           "charge_renforcee": "Boosted charge",
-          "coupure_reseau": "Grid outage"
+          "coupure_reseau": "Grid outage",
+          "capteur_reseau_indisponible": "Grid sensor unavailable"
         }
       },
       "raison": {

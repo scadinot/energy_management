@@ -127,7 +127,8 @@
           "reseau": "Réseau",
           "batterie": "Batterie",
           "charge_renforcee": "Charge renforcée",
-          "coupure_reseau": "Coupure réseau"
+          "coupure_reseau": "Coupure réseau",
+          "capteur_reseau_indisponible": "Capteur réseau indisponible"
         }
       },
       "raison": {

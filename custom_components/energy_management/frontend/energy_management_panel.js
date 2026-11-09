@@ -17,6 +17,7 @@ const MODE_LABELS = {
   batterie: 'Batterie',
   charge_renforcee: 'Charge renforcée',
   coupure_reseau: 'Coupure réseau',
+  capteur_reseau_indisponible: 'Capteur réseau indisponible',
 };
 
 // Repli si la conf du panneau ne fournit pas active_levels
@@ -285,12 +286,16 @@ class EnergyManagementPanel extends HTMLElement {
     const soc = this._num(c.soc);
     const reserve = this._num(this._own('reserve_active'));
     let grid;
-    if (!c.grid_presence || !this._state(c.grid_presence)) {
+    const gridState = c.grid_presence ? this._text(c.grid_presence, null) : null;
+    if (!c.grid_presence) {
       grid = '<span class="badge">Non configurée</span>';
+    } else if (gridState === 'on') {
+      grid = '<span class="badge ok">Présent</span>';
+    } else if (gridState === null || gridState === 'unavailable' || gridState === 'unknown') {
+      // Capteur absent ou illisible : à distinguer d'une vraie coupure
+      grid = '<span class="badge warn">Capteur indisponible</span>';
     } else {
-      grid = this._text(c.grid_presence) === 'on'
-        ? '<span class="badge ok">Présent</span>'
-        : '<span class="badge err">Absent</span>';
+      grid = '<span class="badge err">Absent</span>';
     }
     this._set('battery', `
       <h2>Batterie</h2>

@@ -79,6 +79,14 @@ def grid_present(hass: HomeAssistant, conf: Mapping[str, Any]) -> bool:
     return _state(hass, conf, CONF_GRID) == "on"
 
 
+def grid_unknown(hass: HomeAssistant, conf: Mapping[str, Any]) -> bool:
+    """Capteur de présence configuré mais illisible (absent, inconnu, indisponible)."""
+    if not conf.get(CONF_GRID):
+        return False
+    state = _state(hass, conf, CONF_GRID)
+    return state is None or state in _UNREADABLE
+
+
 def read_inputs(hass: HomeAssistant, conf: Mapping[str, Any]) -> Inputs:
     """Lit les sources configurées ; toute valeur douteuse reste prudente."""
     vigilance, vigilance_unknown = _vigilance(hass, conf)
@@ -103,6 +111,7 @@ def read_inputs(hass: HomeAssistant, conf: Mapping[str, Any]) -> Inputs:
         vigilance_unknown=vigilance_unknown,
         soc=soc,
         ev_charging=ev_charging,
+        grid_unknown=grid_unknown(hass, conf),
     )
 
 

@@ -6,6 +6,13 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Non publié]
 
+## [0.1.2] - 2026-11-09
+
+### Modifié
+
+- Présence réseau : un capteur configuré mais illisible (absent, `unknown`, `unavailable`) n'est plus confondu avec une vraie coupure. Mode voulu passe à « Capteur réseau indisponible » (nouvel état `capteur_reseau_indisponible`) avec la raison « Capteur de présence réseau indisponible, aucune écriture ». Le comportement reste celui d'une coupure : aucune écriture, remise aux valeurs normales reportée jusqu'au retour du capteur.
+- Panneau : le bloc Batterie affiche « Capteur indisponible » au lieu de « Absent » (capteur illisible) ou de « Non configurée » (capteur configuré mais introuvable).
+
 ## [0.1.1] - 2026-11-08
 
 ### Corrigé
