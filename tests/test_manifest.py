@@ -29,7 +29,7 @@ def test_manifest():
     data = json.loads(MANIFEST.read_text(encoding="utf-8"))
     assert data["domain"] == "energy_management"
     assert data["name"] == "Energy Management"
-    assert data["version"] == "0.1.2"
+    assert data["version"] == "0.1.3"
     assert data["single_config_entry"] is True
     assert data["config_flow"] is True
     assert data["iot_class"] == "calculated"

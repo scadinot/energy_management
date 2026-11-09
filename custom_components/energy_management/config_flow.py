@@ -1,7 +1,8 @@
 """Assistant de configuration et options d'Energy Management.
 
-Trois étapes, identiques à l'installation et dans les options :
-sources, commandes de l'onduleur, valeurs et réglages.
+Trois pages : sources, commandes de l'onduleur, valeurs et réglages.
+À l'installation, elles s'enchaînent. Dans les options, un menu de
+configuration mène à chacune, puis « Valider et enregistrer ».
 """
 from __future__ import annotations
 
@@ -51,6 +52,9 @@ from .const import (
 
 # Champs facultatifs : absents de la configuration s'ils sont laissés vides
 OPTIONAL_KEYS = (CONF_GRID, CONF_NOTIFY)
+
+# Menu des options : les trois pages, puis l'enregistrement
+OPTIONS_MENU = ["sources", "commands", "values", "confirm"]
 
 
 def _entity(domain: str) -> selector.EntitySelector:
@@ -242,11 +246,11 @@ def validate_values(hass: HomeAssistant, conf: Mapping[str, Any]) -> dict[str, s
 
 
 class _StepsMixin:
-    """Les trois étapes communes à l'installation et aux options."""
+    """Les trois pages communes à l'installation et aux options."""
 
     hass: HomeAssistant
     _data: dict[str, Any]
-    # Le champ notify figurait-il dans le dernier formulaire de l'étape 3 ?
+    # Le champ notify figurait-il dans le dernier formulaire des valeurs ?
     _notify_shown = False
 
     def _merge(self, user_input: Mapping[str, Any], keys: tuple[str, ...]) -> None:
@@ -256,25 +260,29 @@ class _StepsMixin:
                 self._data.pop(key, None)
         self._data.update(user_input)
 
+    async def _next(self, done: str):
+        """Suite après une page validée (`done` : sources, commands ou values)."""
+        raise NotImplementedError
+
     async def _sources(self, step_id: str, user_input: dict[str, Any] | None):
         if user_input is not None:
             self._merge(user_input, (CONF_GRID,))
-            return await self.async_step_commands()
+            return await self._next("sources")
         return self.async_show_form(  # type: ignore[attr-defined]
             step_id=step_id, data_schema=sources_schema(self._data)
         )
 
     async def async_step_commands(self, user_input: dict[str, Any] | None = None):
-        """Étape 2 : commandes de l'onduleur."""
+        """Commandes de l'onduleur."""
         if user_input is not None:
             self._merge(user_input, ())
-            return await self.async_step_values()
+            return await self._next("commands")
         return self.async_show_form(  # type: ignore[attr-defined]
             step_id="commands", data_schema=commands_schema(self._data)
         )
 
     async def async_step_values(self, user_input: dict[str, Any] | None = None):
-        """Étape 3 : valeurs et réglages, avec contrôle de saisie."""
+        """Valeurs et réglages, avec contrôle de saisie."""
         errors: dict[str, str] = {}
         if user_input is not None:
             # Champ notify absent du formulaire (aucun service) : la cible
@@ -282,7 +290,11 @@ class _StepsMixin:
             self._merge(user_input, (CONF_NOTIFY,) if self._notify_shown else ())
             errors = validate_values(self.hass, self._data)
             if not errors:
-                return await self._finish()
+                return await self._next("values")
+        return self._values_form(errors)
+
+    def _values_form(self, errors: dict[str, str]):
+        """Formulaire des valeurs, prérempli, avec les erreurs éventuelles."""
         schema = values_schema(self.hass, self._data)
         self._notify_shown = CONF_NOTIFY in schema.schema
         return self.async_show_form(  # type: ignore[attr-defined]
@@ -291,12 +303,9 @@ class _StepsMixin:
             errors=errors,
         )
 
-    async def _finish(self):
-        raise NotImplementedError
-
 
 class EnergyManagementConfigFlow(_StepsMixin, ConfigFlow, domain=DOMAIN):
-    """Installation en trois étapes."""
+    """Installation : les trois pages s'enchaînent."""
 
     VERSION = 1
 
@@ -306,31 +315,57 @@ class EnergyManagementConfigFlow(_StepsMixin, ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Étape 1 : sources."""
+        """Page 1 : sources."""
         return await self._sources("user", user_input)
 
-    async def _finish(self) -> ConfigFlowResult:
+    async def _next(self, done: str) -> ConfigFlowResult:
+        if done == "sources":
+            return await self.async_step_commands()
+        if done == "commands":
+            return await self.async_step_values()
         return self.async_create_entry(title="Energy Management", data=self._data)
 
     @staticmethod
     @callback
     def async_get_options_flow(config_entry: ConfigEntry) -> EnergyManagementOptionsFlow:
-        """Options : mêmes étapes, préremplies."""
+        """Options : menu de configuration."""
         return EnergyManagementOptionsFlow()
 
 
 class EnergyManagementOptionsFlow(_StepsMixin, OptionsFlow):
-    """Options en trois étapes ; enregistre la configuration complète."""
+    """Options : menu vers les trois pages ; enregistre la configuration complète."""
 
     _data: dict[str, Any]
+    # « Valider et enregistrer » a renvoyé vers les valeurs en erreur :
+    # une fois corrigées, on enregistre sans repasser par le menu.
+    _saving = False
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Étape 1 : sources, préremplies avec la configuration actuelle."""
+        """Menu de configuration, prérempli avec la configuration actuelle."""
         if not hasattr(self, "_data"):
             self._data = conf_of(self.config_entry)
-        return await self._sources("init", user_input)
+        return self.async_show_menu(step_id="init", menu_options=OPTIONS_MENU)
 
-    async def _finish(self) -> ConfigFlowResult:
+    async def async_step_sources(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Page des sources."""
+        return await self._sources("sources", user_input)
+
+    async def _next(self, done: str) -> ConfigFlowResult:
+        if done == "values" and self._saving:
+            return self.async_create_entry(data=self._data)
+        return await self.async_step_init()
+
+    async def async_step_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Valider et enregistrer ; des valeurs devenues fautives (par exemple
+        après un changement de commandes) renvoient vers leur page."""
+        errors = validate_values(self.hass, self._data)
+        if errors:
+            self._saving = True
+            return self._values_form(errors)
         return self.async_create_entry(data=self._data)

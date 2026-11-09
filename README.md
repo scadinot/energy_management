@@ -99,7 +99,7 @@ Avant de supprimer l'intégration, couper le Pilotage et attendre la fin de la r
 
 ## Configuration
 
-Assistant en trois étapes, toutes modifiables ensuite avec **Configurer** (options).
+À l'installation, assistant en trois étapes. Ensuite, **Configurer** ouvre un **menu de configuration** : Sources, Commandes de l'onduleur, Valeurs et réglages, puis **Valider et enregistrer**. Chaque page revient au menu ; rien n'est enregistré avant « Valider et enregistrer ». À l'enregistrement, les valeurs sont revérifiées : si un changement de commandes les a rendues fausses (par exemple une valeur « réseau » absente du nouveau `select`), la page Valeurs s'affiche avec l'erreur, et l'enregistrement se fait dès qu'elle est corrigée.
 
 | Étape | Champ | Type | Exemple (installation de référence) |
 |---|---|---|---|

@@ -157,42 +157,126 @@ async def test_bornes_ignorees_si_entite_absente(hass, base_states):
     assert result["type"] is FlowResultType.CREATE_ENTRY
 
 
-async def test_options_flow(hass, base_states, mock_entry):
-    mock_entry.add_to_hass(hass)
-    result = await hass.config_entries.options.async_init(mock_entry.entry_id)
+MENU = ["sources", "commands", "values", "confirm"]
+
+
+async def _menu(hass, entry):
+    """Ouvre les options : menu de configuration."""
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] is FlowResultType.MENU
     assert result["step_id"] == "init"
+    assert result["menu_options"] == MENU
+    return result
+
+
+async def _page(hass, result, page):
+    """Depuis le menu, ouvre une page."""
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"], _part(MOCK_CONF, STEP_1)
+        result["flow_id"], {"next_step_id": page}
     )
-    assert result["step_id"] == "commands"
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"], _part(MOCK_CONF, STEP_2)
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == page
+    return result
+
+
+async def _enregistrer(hass, result):
+    """Depuis le menu, « Valider et enregistrer »."""
+    return await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "confirm"}
     )
-    assert result["step_id"] == "values"
+
+
+async def test_options_menu(hass, base_states, mock_entry):
+    """Les options s'ouvrent sur un menu : trois pages et l'enregistrement."""
+    mock_entry.add_to_hass(hass)
+    await _menu(hass, mock_entry)
+
+
+async def test_options_flow(hass, base_states, mock_entry):
+    """Une seule page modifiée, retour au menu, puis enregistrement complet."""
+    mock_entry.add_to_hass(hass)
+    result = await _page(hass, await _menu(hass, mock_entry), "values")
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], {**_part(MOCK_CONF, STEP_3), CONF_CHARGE_BOOST: 18}
     )
+    assert result["type"] is FlowResultType.MENU
+    assert result["step_id"] == "init"
+    result = await _enregistrer(hass, result)
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert mock_entry.options[CONF_CHARGE_BOOST] == 18
     assert mock_entry.options[CONF_SOC] == MOCK_CONF[CONF_SOC]
 
 
+async def test_options_enregistrer_sans_modifier(hass, base_states, mock_entry):
+    """Enregistrer directement : configuration actuelle conservée telle quelle."""
+    mock_entry.add_to_hass(hass)
+    result = await _enregistrer(hass, await _menu(hass, mock_entry))
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert dict(mock_entry.options) == MOCK_CONF
+
+
+async def test_options_chaque_page_revient_au_menu(hass, base_states, mock_entry):
+    mock_entry.add_to_hass(hass)
+    result = await _menu(hass, mock_entry)
+    for page, keys in (("sources", STEP_1), ("commands", STEP_2), ("values", STEP_3)):
+        result = await _page(hass, result, page)
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], _part(MOCK_CONF, keys)
+        )
+        assert result["type"] is FlowResultType.MENU, page
+    assert mock_entry.options == {}  # rien d'enregistré avant « Valider »
+
+
 async def test_options_flow_champ_facultatif_vide(hass, base_states, mock_entry):
     """Vider la présence réseau la retire de la configuration."""
     mock_entry.add_to_hass(hass)
-    result = await hass.config_entries.options.async_init(mock_entry.entry_id)
+    result = await _page(hass, await _menu(hass, mock_entry), "sources")
     sans_reseau = [key for key in STEP_1 if key != CONF_GRID]
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], _part(MOCK_CONF, sans_reseau)
     )
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"], _part(MOCK_CONF, STEP_2)
-    )
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"], _part(MOCK_CONF, STEP_3)
-    )
+    result = await _enregistrer(hass, result)
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert CONF_GRID not in mock_entry.options
+
+
+async def test_options_page_valeurs_erreur(hass, base_states, mock_entry):
+    """Page Valeurs fautive : erreur affichée, pas de retour au menu."""
+    mock_entry.add_to_hass(hass)
+    result = await _page(hass, await _menu(hass, mock_entry), "values")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {**_part(MOCK_CONF, STEP_3), CONF_RESERVE_VIGILANCE: 10}
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "values"
+    assert result["errors"] == {CONF_RESERVE_VIGILANCE: "reserve_order"}
+
+
+async def test_options_enregistrer_revalide(hass, base_states, mock_entry):
+    """Commandes changées sans revoir les valeurs : l'enregistrement revérifie,
+    montre la page Valeurs en erreur, puis enregistre dès qu'elle est corrigée."""
+    autre = "select.autre_mode"
+    hass.states.async_set(autre, "A", {"options": ["A", "B"]})
+    mock_entry.add_to_hass(hass)
+    result = await _page(hass, await _menu(hass, mock_entry), "commands")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {**_part(MOCK_CONF, STEP_2), CONF_MODE_SELECT: autre}
+    )
+    result = await _enregistrer(hass, result)
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "values"
+    assert result["errors"] == {
+        CONF_OPTION_GRID: "option_missing",
+        CONF_OPTION_BATTERY: "option_missing",
+    }
+    assert mock_entry.options == {}
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {**_part(MOCK_CONF, STEP_3), CONF_OPTION_GRID: "A", CONF_OPTION_BATTERY: "B"},
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert mock_entry.options[CONF_MODE_SELECT] == autre
+    assert mock_entry.options[CONF_OPTION_BATTERY] == "B"
 
 
 def _structure(node):
@@ -242,16 +326,8 @@ async def test_reserve_plus_ecart_sans_bornes_du_seuil_13(hass, base_states):
 
 
 async def _options_jusqu_aux_valeurs(hass, entry):
-    """Options jusqu'au formulaire de l'étape 3."""
-    result = await hass.config_entries.options.async_init(entry.entry_id)
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"], _part(MOCK_CONF, STEP_1)
-    )
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"], _part(MOCK_CONF, STEP_2)
-    )
-    assert result["step_id"] == "values"
-    return result
+    """Options : menu puis page Valeurs."""
+    return await _page(hass, await _menu(hass, entry), "values")
 
 
 async def test_options_notify_conserve_sans_service(hass, base_states):
@@ -270,6 +346,7 @@ async def test_options_notify_conserve_sans_service(hass, base_states):
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], _part(MOCK_CONF, STEP_3)
     )
+    result = await _enregistrer(hass, result)
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert entry.options[CONF_NOTIFY] == "notify.telephone"
 
@@ -294,5 +371,6 @@ async def test_options_notify_vide_retire(hass, base_states):
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], _part(MOCK_CONF, STEP_3)
     )
+    result = await _enregistrer(hass, result)
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert CONF_NOTIFY not in entry.options

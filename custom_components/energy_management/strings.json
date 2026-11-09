@@ -57,6 +57,16 @@
   "options": {
     "step": {
       "init": {
+        "title": "Configuration menu",
+        "description": "Pick a page to edit, then “Validate and save”. Control stays off until the N-PE bond has been measured.",
+        "menu_options": {
+          "sources": "Sources",
+          "commands": "Inverter commands",
+          "values": "Values and settings",
+          "confirm": "Validate and save"
+        }
+      },
+      "sources": {
         "title": "Sources",
         "data": {
           "color_today": "Tempo colour today",
@@ -96,6 +106,9 @@
           "notify": "Notification service (optional)"
         },
         "description": "The \"grid\" and \"battery\" values come from the options of the chosen output mode."
+      },
+      "confirm": {
+        "title": "Validate and save"
       }
     },
     "error": {

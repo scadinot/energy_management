@@ -6,6 +6,12 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Non publié]
 
+## [0.1.3] - 2026-11-09
+
+### Modifié
+
+- Options : **menu de configuration** comme dans Pool Control. Pages Sources, Commandes de l'onduleur, Valeurs et réglages, puis « Valider et enregistrer » ; chaque page revient au menu et rien n'est enregistré avant la validation. Les valeurs sont revérifiées à l'enregistrement : devenues fausses après un changement de commandes, elles renvoient vers leur page avec l'erreur, puis l'enregistrement se fait dès qu'elles sont corrigées. L'installation reste un assistant en trois étapes.
+
 ## [0.1.2] - 2026-11-09
 
 ### Modifié

@@ -26,26 +26,13 @@ from pytest_homeassistant_custom_component.common import (
 from custom_components.energy_management import manager as manager_module
 from custom_components.energy_management import reconciler
 from custom_components.energy_management.const import (
-    CONF_CHARGE,
-    CONF_CHARGE_BOOST,
-    CONF_CHARGE_NORMAL,
     CONF_COLOR_TODAY,
     CONF_COLOR_TOMORROW,
     CONF_EV_POWER,
-    CONF_EV_THRESHOLD,
-    CONF_GAP,
     CONF_GRID,
-    CONF_HIGH,
-    CONF_HIGH_NORMAL,
-    CONF_LOW,
-    CONF_LOW_NORMAL,
-    CONF_MODE_SELECT,
     CONF_OFF_PEAK,
-    CONF_OPTION_BATTERY,
-    CONF_OPTION_GRID,
     CONF_PHENOMENA,
     CONF_RESERVE_NORMAL,
-    CONF_RESERVE_VIGILANCE,
     CONF_SOC,
     CONF_VIGILANCE,
     DOMAIN,
@@ -72,7 +59,7 @@ from .const import (
 
 RESTORED_ID = "switch.energy_management_pilotage"
 
-# Champs des trois étapes des options
+# Champs de la page Sources des options
 _STEP_1 = [
     CONF_COLOR_TODAY,
     CONF_COLOR_TOMORROW,
@@ -82,19 +69,6 @@ _STEP_1 = [
     CONF_SOC,
     CONF_EV_POWER,
     CONF_GRID,
-]
-_STEP_2 = [CONF_MODE_SELECT, CONF_LOW, CONF_HIGH, CONF_CHARGE]
-_STEP_3 = [
-    CONF_OPTION_GRID,
-    CONF_OPTION_BATTERY,
-    CONF_RESERVE_NORMAL,
-    CONF_RESERVE_VIGILANCE,
-    CONF_GAP,
-    CONF_LOW_NORMAL,
-    CONF_HIGH_NORMAL,
-    CONF_CHARGE_NORMAL,
-    CONF_CHARGE_BOOST,
-    CONF_EV_THRESHOLD,
 ]
 
 
@@ -177,18 +151,20 @@ def _etat(hass: HomeAssistant) -> tuple[str, str, str]:
 
 
 async def _options_sans_reseau(hass: HomeAssistant, entry: MockConfigEntry) -> None:
-    """Passe les trois étapes des options en vidant la présence réseau."""
+    """Options : page Sources sans présence réseau, puis enregistrement."""
     conf = {**entry.data, **entry.options}
-    steps = (
-        [key for key in _STEP_1 if key != CONF_GRID],
-        _STEP_2,
-        _STEP_3,
-    )
+    keys = [key for key in _STEP_1 if key != CONF_GRID]
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    for keys in steps:
-        result = await hass.config_entries.options.async_configure(
-            result["flow_id"], {key: conf[key] for key in keys if key in conf}
-        )
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "sources"}
+    )
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {key: conf[key] for key in keys if key in conf}
+    )
+    assert result["type"] is FlowResultType.MENU
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "confirm"}
+    )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
 
@@ -625,6 +601,9 @@ async def test_options_retire_presence_reseau(
     assert manager.decision.state == "reseau"
     # Les options suivantes ne le proposent plus
     result = await hass.config_entries.options.async_init(mock_entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "sources"}
+    )
     schema = result["data_schema"].schema
     grid = next(key for key in schema if key == CONF_GRID)
     assert not (grid.description or {}).get("suggested_value")

@@ -57,6 +57,16 @@
   "options": {
     "step": {
       "init": {
+        "title": "Menu de configuration",
+        "description": "Choisissez une page à modifier, puis « Valider et enregistrer ». Le Pilotage reste coupé tant que la liaison N-PE n'a pas été mesurée.",
+        "menu_options": {
+          "sources": "Sources",
+          "commands": "Commandes de l'onduleur",
+          "values": "Valeurs et réglages",
+          "confirm": "Valider et enregistrer"
+        }
+      },
+      "sources": {
         "title": "Sources",
         "data": {
           "color_today": "Couleur du jour Tempo",
@@ -96,6 +106,9 @@
           "notify": "Service de notification (facultatif)"
         },
         "description": "Les valeurs « réseau » et « batterie » viennent des options du mode de sortie choisi."
+      },
+      "confirm": {
+        "title": "Valider et enregistrer"
       }
     },
     "error": {
