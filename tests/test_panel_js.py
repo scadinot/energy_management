@@ -104,3 +104,9 @@ def test_formats_et_periode_tarifaire(rendu):
     assert "Période tarifaire" in r["days"]
     assert "Heures pleines" in r["days"]
     assert "Heures creuses" not in r["days"]
+
+
+def test_second_chargement_sans_erreur(rendu):
+    """Nouvelle version chargée dans la même page : pas d'erreur de définition."""
+    assert rendu["reload"]["error"] is None
+    assert rendu["reload"]["sameClass"] is True

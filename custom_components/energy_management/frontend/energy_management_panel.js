@@ -362,4 +362,9 @@ class EnergyManagementPanel extends HTMLElement {
   }
 }
 
-customElements.define("energy-management-panel", EnergyManagementPanel);
+// Nouvelle version chargée dans une page qui a déjà l'ancienne (onglet
+// resté ouvert pendant une mise à jour) : le navigateur refuse une seconde
+// définition. L'ancienne reste affichée jusqu'au rechargement de la page.
+if (!customElements.get("energy-management-panel")) {
+  customElements.define("energy-management-panel", EnergyManagementPanel);
+}

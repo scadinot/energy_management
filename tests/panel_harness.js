@@ -22,7 +22,14 @@ class FakeHTMLElement {
 }
 const registry = {};
 globalThis.HTMLElement = FakeHTMLElement;
-globalThis.customElements = { define: (name, cls) => { registry[name] = cls; } };
+// Comme un navigateur : une seconde définition du même nom est refusée
+globalThis.customElements = {
+  get: (name) => registry[name],
+  define: (name, cls) => {
+    if (registry[name]) throw new Error(`"${name}" has already been used with this registry`);
+    registry[name] = cls;
+  },
+};
 globalThis.window = globalThis;
 globalThis.confirm = () => true;
 
@@ -32,6 +39,15 @@ const src = fs.readFileSync(
 );
 vm.runInThisContext(src);
 const Panel = registry['energy-management-panel'];
+
+// Nouvelle version chargée dans la même page (onglet resté ouvert pendant
+// une mise à jour) : pas d'erreur, la première définition est conservée.
+let reloadError = null;
+try {
+  vm.runInThisContext(`(() => {\n${src}\n})();`);
+} catch (e) {
+  reloadError = String(e);
+}
 
 // --- Données ------------------------------------------------------------------
 const st = (state, attributes = {}) => ({ state, attributes });
@@ -86,6 +102,7 @@ function snapshot(el) {
 }
 
 const result = {};
+result.reload = { error: reloadError, sameClass: registry['energy-management-panel'] === Panel };
 
 // 1. Entités renommées (pièce « Sous-sol ») : retrouvées par hass.entities,
 //    malgré un leurre d'une autre intégration avec la même clé de traduction.

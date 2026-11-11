@@ -6,6 +6,12 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Non publié]
 
+## [0.1.6] - 2026-11-11
+
+### Corrigé
+
+- Panneau : plus d'erreur « energy-management-panel has already been used » dans les journaux quand une nouvelle version est chargée dans un onglet resté ouvert pendant la mise à jour. Le panneau n'est déclaré qu'une fois ; l'ancienne version reste affichée jusqu'au rechargement de la page.
+
 ## [0.1.5] - 2026-11-11
 
 ### Corrigé
