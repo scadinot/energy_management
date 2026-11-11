@@ -94,6 +94,13 @@ class EnergyManagementPanel extends HTMLElement {
     return isNaN(v) ? null : v;
   }
 
+  // Nombre au format de la langue (virgule en français), sans « ,0 » inutile.
+  // Une valeur non numérique est rendue telle quelle.
+  _fmtNum(v) {
+    const n = typeof v === 'number' ? v : parseFloat(v);
+    return isNaN(n) ? String(v) : n.toLocaleString(this._lang(), { maximumFractionDigits: 1 });
+  }
+
   _esc(v) {
     return String(v === null || v === undefined ? '' : v)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -277,7 +284,7 @@ class EnergyManagementPanel extends HTMLElement {
         <div><div class="muted">Aujourd'hui</div>${this._tempoCell(c.color_today)}</div>
         <div><div class="muted">Demain</div>${this._tempoCell(c.color_tomorrow)}</div>
       </div>
-      <div class="kv"><span>Heures creuses</span><span>${offPeak}</span></div>
+      <div class="kv"><span>Période tarifaire</span><span>${offPeak}</span></div>
       <div class="kv"><span>Vigilance</span><span>${this._vigilance()}</span></div>`);
   }
 
@@ -299,8 +306,8 @@ class EnergyManagementPanel extends HTMLElement {
     }
     this._set('battery', `
       <h2>Batterie</h2>
-      <div class="big">${soc === null ? '—' : `${soc.toLocaleString(this._lang(), { maximumFractionDigits: 1 })} %`}</div>
-      <div class="kv"><span>Réserve active</span><span>${reserve === null ? '—' : `${reserve} %`}</span></div>
+      <div class="big">${soc === null ? '—' : `${this._fmtNum(soc)} %`}</div>
+      <div class="kv"><span>Réserve active</span><span>${reserve === null ? '—' : `${this._fmtNum(reserve)} %`}</span></div>
       <div class="kv"><span>Réseau</span><span>${grid}</span></div>`);
   }
 
@@ -338,7 +345,11 @@ class EnergyManagementPanel extends HTMLElement {
           ? actual === want
           : Math.abs(parseFloat(actual) - parseFloat(want)) < 0.5;
       }
-      const fmt = (v) => (v === null ? '—' : this._esc(cmd.unit ? `${v} ${cmd.unit}` : v));
+      // Voulu et réel au même format : « 50 % » des deux côtés, pas « 50.0 % »
+      const fmt = (v) => {
+        if (v === null) return '—';
+        return this._esc(cmd.kind === 'number' ? `${this._fmtNum(v)} ${cmd.unit}` : v);
+      };
       const cls = same === null ? '' : (same ? 'same' : 'diff');
       return `<tr><td>${cmd.label}</td><td>${fmt(want)}</td><td class="${cls}">${fmt(actual)}</td></tr>`;
     }).join('');

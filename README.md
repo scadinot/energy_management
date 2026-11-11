@@ -149,10 +149,10 @@ Entrée **Energy Management** dans la barre latérale (icône `mdi:home-battery`
 | Bloc | Contenu |
 |---|---|
 | En-tête | Interrupteur Pilotage, avec confirmation au basculement ; indicateur Écart ; pastille « Remise en attente » suivie des commandes encore à remettre, tant que la remise aux valeurs normales n'est pas terminée |
-| Aujourd'hui / demain | Couleurs Tempo, heures creuses, vigilance du jour |
+| Aujourd'hui / demain | Couleurs Tempo, période tarifaire (heures creuses ou pleines), vigilance du jour |
 | Batterie | SOC, réserve active, présence du réseau |
 | Décision | Mode voulu et raison |
-| Onduleurs | Pour chaque commande : valeur voulue face à valeur réelle |
+| Onduleurs | Pour chaque commande : valeur voulue face à valeur réelle, au même format |
 
 Le panneau est en lecture seule, sauf l'interrupteur Pilotage.
 

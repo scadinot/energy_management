@@ -78,6 +78,7 @@ function snapshot(el) {
   const r = el.shadowRoot;
   return {
     header: r.getElementById('header').innerHTML,
+    days: r.getElementById('days').innerHTML,
     battery: r.getElementById('battery').innerHTML,
     decision: r.getElementById('decision').innerHTML,
     inverters: r.getElementById('inverters').innerHTML,
@@ -127,5 +128,20 @@ result.grid = {
   missing: gridCase(undefined, 'capteur_reseau_indisponible'),
   notConfigured: snapshot(render({ states: { ...sources, ...own('energy_management_') } })),
 };
+
+// 6. Formats : valeurs réelles brutes de l'onduleur (« 50.0 ») et SOC décimal,
+//    heures pleines.
+const fmtCfg = { ...config, soc: 'sensor.soc', off_peak: 'binary_sensor.hc' };
+result.formats = snapshot(render({
+  states: {
+    ...sources,
+    ...own('energy_management_'),
+    'number.low': st('50.0'),
+    'number.high': st('95.0'),
+    'number.charge': st('15.0'),
+    'sensor.soc': st('99.8'),
+    'binary_sensor.hc': st('off'),
+  },
+}, fmtCfg));
 
 process.stdout.write(JSON.stringify(result));

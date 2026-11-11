@@ -6,6 +6,13 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Non publié]
 
+## [0.1.4] - 2026-11-11
+
+### Corrigé
+
+- Panneau : la ligne « Heures creuses » devient « Période tarifaire » ; son badge (Heures creuses ou Heures pleines) ne contredit plus le libellé.
+- Panneau : les valeurs réelles des onduleurs s'affichent au même format que les valeurs voulues (« 50 % » et non « 50.0 % »), avec la virgule décimale française, comme le SOC et la réserve.
+
 ## [0.1.3] - 2026-11-09
 
 ### Modifié

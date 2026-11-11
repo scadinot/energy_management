@@ -87,3 +87,20 @@ def test_entites_introuvables(rendu):
     assert "Réseau" not in r["decision"]
     assert "—" in r["decision"]
     assert "disabled" in r["header"]
+
+
+def test_formats_et_periode_tarifaire(rendu):
+    """Valeurs réelles brutes (« 50.0 ») au format voulu ; libellé sans contradiction."""
+    r = rendu["formats"]
+    inv = r["inverters"]
+    for brut in ("50.0", "95.0", "15.0"):
+        assert brut not in inv
+    # Voulu et réel identiques : chaque valeur apparaît deux fois, en vert
+    assert inv.count("50 %") == 2
+    assert inv.count("95 %") == 2
+    assert inv.count("15 A") == 2
+    assert 'class="diff"' not in inv
+    assert "99,8 %" in r["battery"]
+    assert "Période tarifaire" in r["days"]
+    assert "Heures pleines" in r["days"]
+    assert "Heures creuses" not in r["days"]
