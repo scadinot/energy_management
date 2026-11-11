@@ -6,6 +6,12 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Non publié]
 
+## [0.1.5] - 2026-11-11
+
+### Corrigé
+
+- Panneau : l'adresse du fichier porte le numéro de version (`energy_management_panel.js?v=0.1.5`). Après une mise à jour, le navigateur ne ressort plus l'ancien panneau de son cache ; un rechargement de la page suffit, sans vider le cache.
+
 ## [0.1.4] - 2026-11-11
 
 ### Corrigé

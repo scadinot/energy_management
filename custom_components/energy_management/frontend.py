@@ -13,6 +13,7 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from homeassistant.loader import async_get_integration
 
 from .const import ACTIVE_LEVELS, CONF_PHENOMENA, DEFAULT_PHENOMENA, DOMAIN, conf_of
 
@@ -62,11 +63,14 @@ async def async_register_panel(hass: HomeAssistant, entry: ConfigEntry) -> None:
             domain, DOMAIN, f"{entry.entry_id}_{key}"
         )
 
+    # Version dans l'adresse : chaque mise à jour a sa propre adresse, le
+    # navigateur ne peut pas ressortir l'ancien fichier de son cache.
+    integration = await async_get_integration(hass, DOMAIN)
     await panel_custom.async_register_panel(
         hass=hass,
         webcomponent_name=PANEL_NAME,
         frontend_url_path=PANEL_URL_PATH,
-        module_url=f"{STATIC_PATH}/{JS_FILENAME}",
+        module_url=f"{STATIC_PATH}/{JS_FILENAME}?v={integration.version}",
         sidebar_title=PANEL_TITLE,
         sidebar_icon=PANEL_ICON,
         config=config,

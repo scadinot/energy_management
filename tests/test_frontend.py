@@ -1,6 +1,7 @@
 """Tests du panneau latéral."""
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -50,6 +51,19 @@ async def test_panneau_enregistre(hass, base_states, mock_entry):
         assert reel is not None
         assert config[f"{cle}_entity"] == reel
     assert config[CONF_MODE_SELECT] == MODE_SELECT
+
+
+async def test_adresse_du_panneau_versionnee(hass, base_states, mock_entry):
+    """La version du manifeste est dans l'adresse : pas d'ancien fichier en cache."""
+    manifest = json.loads((JS.parent.parent / "manifest.json").read_text(encoding="utf-8"))
+    with patch(
+        "custom_components.energy_management.frontend.panel_custom.async_register_panel",
+        new=AsyncMock(),
+    ) as register:
+        await _setup(hass, mock_entry)
+    assert register.call_args.kwargs["module_url"] == (
+        f"/energy_management_static/{JS_FILENAME}?v={manifest['version']}"
+    )
 
 
 async def test_panneau_retire_au_dechargement(hass, base_states, mock_entry):
