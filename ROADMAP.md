@@ -4,7 +4,7 @@ Ce document recense les évolutions envisagées au-delà de la version 0.1.6 (vo
 
 ---
 
-## État au 11/11/2026
+## État au 20/11/2026
 
 - **Version 0.1.6** installée sur le serveur.
 - **Période d'observation** commencée le 08/11 avec la 0.1.1, **Pilotage coupé** : la décision est calculée et affichée, rien n'est écrit sur les onduleurs.
@@ -14,9 +14,10 @@ Ce document recense les évolutions envisagées au-delà de la version 0.1.6 (vo
 ## À vérifier pendant l'observation
 
 - **`sensor.rte_tempo_prochaine_couleur` entre minuit et 6 h** : entre 22 h et 6 h, elle doit désigner le jour Tempo qui commence à 6 h. Si l'intégration RTE bascule à minuit, seule la charge renforcée de 0 h à 6 h est touchée.
-  - **Pas encore vérifiable** : du 08/11 au 11/11, tous les jours étaient bleus. Il faut une veille de jour rouge pour voir si la couleur change à minuit.
+  - **Pas encore vérifiable** : du 08/11 au 20/11, tous les jours étaient bleus. Il faut une veille de jour rouge pour voir si la couleur change à minuit.
   - **Déjà constaté** : chaque matin, l'entité est `unavailable` de 6 h jusque vers 7 h, le temps que RTE publie la couleur du lendemain. C'est sans effet sur la décision : un lendemain inconnu est traité comme non rouge, et la charge renforcée ne joue qu'en heures creuses, qui finissent à 6 h.
 - **Présence réseau lue « absent »** pendant 30 s le 10/11 à 20 h 00. Le capteur Growatt était lisible, il a bien indiqué une absence ; la décision est passée par « Coupure réseau », sans écriture. Reste à savoir s'il s'agit d'une vraie micro-coupure ou d'une fausse lecture de l'onduleur. Si l'événement se répète, le confronter à un autre témoin de présence réseau (compteur, prise connectée côté réseau).
+- **Vigilance météo : vérifiée en réel.** Le 19/11 à 0 h 10, Météo-France est passé en orange pour la pluie-inondation. La réserve active est passée de 30 à 50 % à la même seconde. C'était un jour bleu : la décision est restée « réseau » et la raison « Fonctionnement normal », comme prévu, puisque la réserve ne s'applique qu'en mode batterie. Reste à voir, un jour rouge sous vigilance, la raison du type « Jour rouge, réserve 50 % (vigilance …) ».
 - **Capteur réseau illisible aux redémarrages** : à chaque démarrage de Home Assistant, le capteur Growatt est illisible environ une seconde. La décision passe par « Capteur réseau indisponible », sans écriture, puis revient à « réseau ». C'est le comportement attendu depuis la 0.1.2 ; rien à faire.
 
 ## Pistes hors périmètre
