@@ -32,6 +32,6 @@ Ce document recense les évolutions envisagées au-delà de la version 0.1.6 (vo
 
 ## Points ouverts hors logiciel
 
-- **Mesure N-PE** : bloquante pour l'activation du Pilotage (voir le README).
+- **Liaison N-PE** : bloquante pour l'activation du Pilotage. Mesurée le 21/11/2026 : l'onduleur coupe le neutre sur batterie. La commande du contacteur est à reprendre, puis à mesurer à nouveau (voir le README).
 - **Courant maximal du bypass** de chaque onduleur : toute la maison y passe en mode réseau.
 - **Pointe au-delà de 12 kW** possible sur batterie (induction, four et sèche-linge ensemble).
