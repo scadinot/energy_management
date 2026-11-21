@@ -9,16 +9,22 @@ Installation de référence : deux onduleurs Growatt SPF 6000 ES Plus en parall�
 
 L'intégration ne connaît **aucun identifiant d'entité en dur** : toutes les sources et toutes les commandes sont choisies dans l'assistant de configuration.
 
-## Avertissement : liaison N-PE, mesure à faire avant d'activer le Pilotage
+## Avertissement : le Growatt coupe le neutre sur batterie, Pilotage interdit en l'état
 
-La sortie des onduleurs est en neutre isolé, avec une liaison N-PE établie par un contacteur dont la bobine est alimentée par **la présence du réseau**. Si l'onduleur coupe aussi le neutre en fonctionnement sur batterie (constaté sur un SPF 5000 ES), alors en mode SBU **réseau présent** — exactement la situation créée par cette intégration les jours rouges — la sortie est en neutre flottant et **les différentiels 30 mA ne protègent plus les personnes**.
+La sortie des onduleurs est en neutre isolé, avec une liaison N-PE prévue par un contacteur dont la bobine est alimentée par **la présence du réseau**. En mode SBU **réseau présent**, exactement la situation que crée cette intégration les jours rouges, cette bobine garde la liaison ouverte. Si l'onduleur coupe aussi le neutre sur batterie, la sortie est en neutre flottant et **les différentiels 30 mA ne protègent plus les personnes**.
 
-C'est pourquoi l'interrupteur **Pilotage** est **coupé par défaut**. Avant de l'activer :
+**Mesuré le 21/11/2026 : le SPF 6000 ES Plus coupe bien le neutre.** Au bornier de l'onduleur 1, sans liaison N-PE en aval :
 
-1. mesurer la **tension N-PE en sortie**, onduleurs en SBU, réseau présent ;
-2. si nécessaire, reprendre la commande du contacteur (elle devrait suivre « onduleur sur batterie » et non « réseau présent »).
+| Tension ou résistance entre N entrée et N sortie | Mode UTI (bypass) | Mode SBU, réseau présent, les deux onduleurs sur batterie |
+|---|---|---|
+| Valeur relevée | 0 Ω : neutres reliés | **110 V AC** : sortie flottante à mi-tension |
 
-Tant que cette mesure n'est pas faite, laisser le Pilotage coupé : l'intégration calcule et affiche ce qu'elle ferait, sans rien écrire.
+C'est pourquoi l'interrupteur **Pilotage** est **coupé par défaut**, et doit le rester tant que :
+
+1. la commande du contacteur n'a pas été reprise pour suivre « onduleur sur batterie » et non « réseau présent » ;
+2. la tension N-PE en sortie n'a pas été **mesurée à nouveau** une fois la commande reprise, onduleurs en SBU, réseau présent. Mesurer en position V : un multimètre en position LoZ, ou resté en ohms en mode automatique, ramène un neutre flottant à 0 et masque le défaut.
+
+D'ici là, l'intégration calcule et affiche ce qu'elle ferait, sans rien écrire.
 
 ## Table des matières
 
@@ -211,12 +217,12 @@ Tant que Home Assistant n'a pas fini de démarrer, l'intégration calcule et aff
 
 1. Installer et configurer avec le Pilotage coupé.
 2. Observer quelques jours : Mode voulu, Raison et Écart doivent correspondre aux journées réelles (au moins une nuit et une journée).
-3. Faire la mesure N-PE décrite en tête de ce document et, si nécessaire, reprendre la commande du contacteur.
+3. Reprendre la commande du contacteur, puis refaire la mesure N-PE décrite en tête de ce document : le neutre coupé sur batterie a été mesuré le 21/11/2026.
 4. Activer le Pilotage. Vérifier le premier jour rouge sur l'historique : passage en mode batterie à 6 h, réserve tenue, retour au réseau à 22 h.
 
 ## Points ouverts hors logiciel
 
-- **Mesure N-PE** : bloquante pour l'activation du Pilotage.
+- **Liaison N-PE** : bloquante pour l'activation du Pilotage. Mesurée le 21/11/2026 : l'onduleur coupe le neutre sur batterie (110 V entre N entrée et N sortie en SBU). La commande du contacteur est à reprendre, puis à mesurer à nouveau.
 - **Courant maximal du bypass** de chaque onduleur : toute la maison y passe en mode réseau.
 - **Pointe au-delà de 12 kW** possible sur batterie (induction, four et sèche-linge ensemble).
 
