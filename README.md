@@ -17,12 +17,14 @@ La sortie des onduleurs est en neutre isolé, avec une liaison N-PE prévue par 
 
 | Tension ou résistance entre N entrée et N sortie | Mode UTI (bypass) | Mode SBU, réseau présent, les deux onduleurs sur batterie |
 |---|---|---|
-| Valeur relevée | 0 Ω : neutres reliés | **110 V AC** : sortie flottante à mi-tension |
+| Valeur relevée | 0 Ω : neutres reliés | **110 V AC** : neutres séparés |
+
+Les tensions L-PE et N-PE n'ont pas été mesurées : le potentiel de la sortie par rapport à la terre n'est pas connu.
 
 C'est pourquoi l'interrupteur **Pilotage** est **coupé par défaut**, et doit le rester tant que :
 
-1. la commande du contacteur n'a pas été reprise pour suivre « onduleur sur batterie » et non « réseau présent » ;
-2. la tension N-PE en sortie n'a pas été **mesurée à nouveau** une fois la commande reprise, onduleurs en SBU, réseau présent. Mesurer en position V : un multimètre en position LoZ, ou resté en ohms en mode automatique, ramène un neutre flottant à 0 et masque le défaut.
+1. la commande du contacteur n'a pas été reprise : la liaison doit se fermer sur batterie, réseau présent ou non, et **ne jamais être fermée tant qu'un des onduleurs est en bypass**, sinon elle relie le neutre du réseau à la terre ;
+2. la tension N-PE en sortie n'a pas été **mesurée à nouveau** une fois la commande reprise, onduleurs en SBU, réseau présent, et l'ouverture de la liaison vérifiée en bypass. Mesurer en V alternatif haute impédance : la position LoZ peut ramener un neutre flottant près de 0 V et masquer le défaut. Ne pas mesurer en ohms sous tension, et se méfier du mode automatique qui peut y passer seul.
 
 D'ici là, l'intégration calcule et affiche ce qu'elle ferait, sans rien écrire.
 
