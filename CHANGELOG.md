@@ -6,6 +6,8 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et le pr
 
 ## [Non publié]
 
+## [0.1.7] - 2026-11-22
+
 ### Modifié
 
 - Panneau : la confirmation d'activation du Pilotage avertit que l'onduleur coupe le neutre sur batterie et rappelle les conditions : commande de la liaison N-PE reprise, installation déclarée conforme par un électricien qualifié.
