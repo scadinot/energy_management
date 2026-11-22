@@ -295,6 +295,29 @@ def test_traductions_coherentes():
     assert _structure(strings) == _structure(fr)
 
 
+@pytest.mark.parametrize(
+    ("fichier", "termes"),
+    [
+        ("strings.json", ("N-PE", "qualified electrician", "compliant")),
+        ("translations/en.json", ("N-PE", "qualified electrician", "compliant")),
+        ("translations/fr.json", ("N-PE", "électricien qualifié", "conforme")),
+    ],
+)
+@pytest.mark.parametrize(
+    "chemin",
+    [("config", "user"), ("options", "init"), ("options", "sources")],
+    ids="/".join,
+)
+def test_consigne_n_pe_exige_la_conformite(fichier, termes, chemin):
+    """Une mesure ne suffit pas : les textes exigent une installation conforme."""
+    dossier = Path(__file__).parent.parent / "custom_components" / "energy_management"
+    textes = json.loads((dossier / fichier).read_text(encoding="utf-8"))
+    flux, etape = chemin
+    description = textes[flux]["step"][etape]["description"]
+    for terme in termes:
+        assert terme in description
+
+
 def _bornes(hass, low, high):
     """Pose les bornes des entités des seuils 12 et 13."""
     hass.states.async_set(LOW, "50", {"min": low[0], "max": low[1], "step": 1})

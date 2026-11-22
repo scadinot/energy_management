@@ -233,7 +233,11 @@ class EnergyManagementPanel extends HTMLElement {
     const id = this._own('pilotage');
     const on = input.checked;
     const message = on
-      ? 'Activer le Pilotage ? Energy Management pourra écrire sur l\'onduleur.'
+      ? 'Activer le Pilotage ? Energy Management pourra écrire sur l\'onduleur et le faire passer sur batterie.'
+        + '\n\nATTENTION : sur batterie, l\'onduleur coupe le neutre. Sans liaison N-PE, '
+        + 'les différentiels 30 mA ne protègent pas au premier défaut.'
+        + '\n\nN\'activez que si la commande de la liaison N-PE a été reprise et si un électricien qualifié '
+        + 'a déclaré l\'installation conforme.'
       : 'Couper le Pilotage ? Les réglages de l\'onduleur seront remis aux valeurs normales.';
     if (!id || !window.confirm(message)) {
       // Annulation : on restaure l'état réel de l'entité
