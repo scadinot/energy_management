@@ -21,10 +21,19 @@ La sortie des onduleurs est en neutre isolé, avec une liaison N-PE prévue par 
 
 Les tensions L-PE et N-PE n'ont pas été mesurées : le potentiel de la sortie par rapport à la terre n'est pas connu.
 
-C'est pourquoi l'interrupteur **Pilotage** est **coupé par défaut**, et doit le rester tant que :
+C'est pourquoi l'interrupteur **Pilotage** est **coupé par défaut**. Ce réglage ne vaut qu'à la première installation, car l'état est ensuite conservé au redémarrage : **si le Pilotage est déjà activé, le couper à la main** et attendre la fin de la remise aux valeurs normales (pastille « Remise en attente » disparue, voir [Verrou Pilotage](#verrou-pilotage)). Le couper ne supprime pas le danger : lors d'une coupure réseau, les onduleurs passent d'eux-mêmes sur batterie.
 
-1. la commande du contacteur n'a pas été reprise : la liaison doit se fermer sur batterie, réseau présent ou non, et **ne jamais être fermée tant qu'un des onduleurs est en bypass**, sinon elle relie le neutre du réseau à la terre ;
-2. la tension N-PE en sortie n'a pas été **mesurée à nouveau** une fois la commande reprise, onduleurs en SBU, réseau présent, et l'ouverture de la liaison vérifiée en bypass. Mesurer en V alternatif haute impédance : la position LoZ peut ramener un neutre flottant près de 0 V et masquer le défaut. Ne pas mesurer en ohms sous tension, et se méfier du mode automatique qui peut y passer seul.
+Le Pilotage doit rester coupé tant que :
+
+1. la commande du contacteur n'a pas été reprise : elle doit suivre **l'état réel de transfert des onduleurs, et non la consigne SBU**. La liaison doit se fermer sur batterie, réseau présent ou non, et **ne jamais être fermée tant qu'un des onduleurs est en bypass**, sinon elle relie le neutre du réseau à la terre ;
+2. un **électricien qualifié** n'a pas contrôlé l'installation une fois la commande reprise et **déclaré tous les résultats conformes**. Une nouvelle mesure ne suffit pas, même si la tension N-PE est faible. Le contrôle porte sur :
+   - la liaison et la tension N-PE en sortie, onduleurs sur batterie **réseau présent** (SBU) ;
+   - les mêmes points **pendant une coupure réseau** ;
+   - l'ouverture de la liaison **en bypass** ;
+   - les **transitions** entre ces régimes, dans les deux sens ;
+   - le **déclenchement des différentiels 30 mA sur un défaut à la terre**, sur batterie : leur bouton de test ne le prouve pas, il fonctionne aussi sans liaison N-PE.
+
+Pour les mesures de tension, utiliser le V alternatif haute impédance : la position LoZ peut ramener un neutre flottant près de 0 V et masquer le défaut. Ne pas mesurer en ohms sous tension, et se méfier du mode automatique qui peut y passer seul.
 
 D'ici là, l'intégration calcule et affiche ce qu'elle ferait, sans rien écrire.
 
@@ -219,12 +228,12 @@ Tant que Home Assistant n'a pas fini de démarrer, l'intégration calcule et aff
 
 1. Installer et configurer avec le Pilotage coupé.
 2. Observer quelques jours : Mode voulu, Raison et Écart doivent correspondre aux journées réelles (au moins une nuit et une journée).
-3. Reprendre la commande du contacteur, puis refaire la mesure N-PE décrite en tête de ce document : le neutre coupé sur batterie a été mesuré le 21/11/2026.
+3. Reprendre la commande du contacteur, puis faire déclarer l'installation conforme par un électricien qualifié, selon les contrôles décrits en tête de ce document. Sans résultat conforme, ne pas passer à l'étape suivante.
 4. Activer le Pilotage. Vérifier le premier jour rouge sur l'historique : passage en mode batterie à 6 h, réserve tenue, retour au réseau à 22 h.
 
 ## Points ouverts hors logiciel
 
-- **Liaison N-PE** : bloquante pour l'activation du Pilotage. Mesurée le 21/11/2026 : l'onduleur coupe le neutre sur batterie (110 V entre N entrée et N sortie en SBU). La commande du contacteur est à reprendre, puis à mesurer à nouveau.
+- **Liaison N-PE** : bloquante pour l'activation du Pilotage. Mesurée le 21/11/2026 : l'onduleur coupe le neutre sur batterie (110 V entre N entrée et N sortie en SBU). La commande du contacteur est à reprendre, puis l'installation à faire déclarer conforme par un électricien qualifié.
 - **Courant maximal du bypass** de chaque onduleur : toute la maison y passe en mode réseau.
 - **Pointe au-delà de 12 kW** possible sur batterie (induction, four et sèche-linge ensemble).
 
