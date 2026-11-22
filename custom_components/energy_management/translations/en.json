@@ -13,7 +13,7 @@
           "ev_power": "EV charger power",
           "grid_presence": "Grid presence (optional)"
         },
-        "description": "Choose the entities the integration reads. The inverters disconnect neutral on battery: keep Control off until the N-PE bond control has been reworked and a qualified electrician has declared the installation compliant."
+        "description": "Choose the entities the integration reads. The inverters disconnect neutral on battery: keep Control off until the switching of the N-PE bond has been reworked and a qualified electrician has declared the installation compliant."
       },
       "commands": {
         "title": "Inverter commands",
@@ -58,7 +58,7 @@
     "step": {
       "init": {
         "title": "Configuration menu",
-        "description": "Pick a page to edit, then “Validate and save”. The inverters disconnect neutral on battery: keep Control off until the N-PE bond control has been reworked and a qualified electrician has declared the installation compliant.",
+        "description": "Pick a page to edit, then “Validate and save”. The inverters disconnect neutral on battery: keep Control off until the switching of the N-PE bond has been reworked and a qualified electrician has declared the installation compliant.",
         "menu_options": {
           "sources": "Sources",
           "commands": "Inverter commands",
@@ -78,7 +78,7 @@
           "ev_power": "EV charger power",
           "grid_presence": "Grid presence (optional)"
         },
-        "description": "Choose the entities the integration reads. The inverters disconnect neutral on battery: keep Control off until the N-PE bond control has been reworked and a qualified electrician has declared the installation compliant."
+        "description": "Choose the entities the integration reads. The inverters disconnect neutral on battery: keep Control off until the switching of the N-PE bond has been reworked and a qualified electrician has declared the installation compliant."
       },
       "commands": {
         "title": "Inverter commands",
