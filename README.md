@@ -165,7 +165,7 @@ Entrée **Energy Management** dans la barre latérale (icône `mdi:home-battery`
 
 | Bloc | Contenu |
 |---|---|
-| En-tête | Interrupteur Pilotage, avec confirmation au basculement ; indicateur Écart ; pastille « Remise en attente » suivie des commandes encore à remettre, tant que la remise aux valeurs normales n'est pas terminée |
+| En-tête | Interrupteur Pilotage, avec confirmation au basculement (à l'activation, rappel du neutre coupé et du contrôle N-PE ; une activation depuis la fiche de l'entité, une automatisation ou un assistant vocal ne l'affiche pas) ; indicateur Écart ; pastille « Remise en attente » suivie des commandes encore à remettre, tant que la remise aux valeurs normales n'est pas terminée |
 | Aujourd'hui / demain | Couleurs Tempo, période tarifaire (heures creuses ou pleines), vigilance du jour |
 | Batterie | SOC, réserve active, présence du réseau |
 | Décision | Mode voulu et raison |

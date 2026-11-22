@@ -161,4 +161,29 @@ result.formats = snapshot(render({
   },
 }, fmtCfg));
 
+// 7. Bascule du Pilotage : message demandé, appel seulement après accord.
+const toggle = (checked, accept) => {
+  const calls = [];
+  const el = render({
+    states: {
+      ...sources,
+      ...own('energy_management_'),
+      'switch.energy_management_pilotage': st(checked ? 'off' : 'on'),
+    },
+    callService: (...args) => { calls.push(args); return Promise.resolve(); },
+  });
+  let message = null;
+  const previous = globalThis.confirm;
+  globalThis.confirm = (text) => { message = text; return accept; };
+  const input = { checked };
+  el._onPilotage(input);
+  globalThis.confirm = previous;
+  return { message, calls, checked: input.checked };
+};
+result.toggle = {
+  onRefused: toggle(true, false),
+  onAccepted: toggle(true, true),
+  offAccepted: toggle(false, true),
+};
+
 process.stdout.write(JSON.stringify(result));

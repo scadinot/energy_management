@@ -13,7 +13,7 @@
           "ev_power": "Puissance de la borne",
           "grid_presence": "Présence réseau (facultatif)"
         },
-        "description": "Choisissez les entités lues par l'extension. Le Pilotage reste coupé tant que la liaison N-PE n'a pas été mesurée."
+        "description": "Choisissez les entités lues par l'extension. Les onduleurs coupent le neutre sur batterie : laissez le Pilotage coupé tant que la commande de la liaison N-PE n'a pas été reprise et l'installation déclarée conforme par un électricien qualifié."
       },
       "commands": {
         "title": "Commandes de l'onduleur",
@@ -58,7 +58,7 @@
     "step": {
       "init": {
         "title": "Menu de configuration",
-        "description": "Choisissez une page à modifier, puis « Valider et enregistrer ». Le Pilotage reste coupé tant que la liaison N-PE n'a pas été mesurée.",
+        "description": "Choisissez une page à modifier, puis « Valider et enregistrer ». Les onduleurs coupent le neutre sur batterie : laissez le Pilotage coupé tant que la commande de la liaison N-PE n'a pas été reprise et l'installation déclarée conforme par un électricien qualifié.",
         "menu_options": {
           "sources": "Sources",
           "commands": "Commandes de l'onduleur",
@@ -78,7 +78,7 @@
           "ev_power": "Puissance de la borne",
           "grid_presence": "Présence réseau (facultatif)"
         },
-        "description": "Choisissez les entités lues par l'extension. Le Pilotage reste coupé tant que la liaison N-PE n'a pas été mesurée."
+        "description": "Choisissez les entités lues par l'extension. Les onduleurs coupent le neutre sur batterie : laissez le Pilotage coupé tant que la commande de la liaison N-PE n'a pas été reprise et l'installation déclarée conforme par un électricien qualifié."
       },
       "commands": {
         "title": "Commandes de l'onduleur",

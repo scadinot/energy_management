@@ -106,6 +106,36 @@ def test_formats_et_periode_tarifaire(rendu):
     assert "Heures creuses" not in r["days"]
 
 
+def test_activation_avertit_du_neutre_coupe(rendu):
+    """Activer le Pilotage rappelle le danger et le critère de conformité."""
+    message = rendu["toggle"]["onRefused"]["message"]
+    assert "coupe le neutre" in message
+    assert "30 mA" in message
+    assert "liaison N-PE" in message
+    assert "électricien qualifié" in message
+    assert "conforme" in message
+
+
+def test_activation_ecrit_seulement_apres_accord(rendu):
+    """Refus : aucun appel, case restaurée. Accord : un seul appel."""
+    refus = rendu["toggle"]["onRefused"]
+    assert refus["calls"] == []
+    assert refus["checked"] is False
+    assert rendu["toggle"]["onAccepted"]["calls"] == [
+        ["switch", "turn_on", {"entity_id": "switch.energy_management_pilotage"}]
+    ]
+
+
+def test_coupure_sans_avertissement(rendu):
+    """Couper le Pilotage reste un geste simple, sans mise en garde."""
+    coupure = rendu["toggle"]["offAccepted"]
+    assert "N-PE" not in coupure["message"]
+    assert "valeurs normales" in coupure["message"]
+    assert coupure["calls"] == [
+        ["switch", "turn_off", {"entity_id": "switch.energy_management_pilotage"}]
+    ]
+
+
 def test_second_chargement_sans_erreur(rendu):
     """Nouvelle version chargée dans la même page : pas d'erreur de définition."""
     assert rendu["reload"]["error"] is None
